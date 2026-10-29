@@ -26,6 +26,8 @@ juce_add_binary_data(CorpuscularData
             "${CMAKE_CURRENT_SOURCE_DIR}/branding/psy_day_stage.vitalskin"
             "${CMAKE_CURRENT_SOURCE_DIR}/branding/neon_tubes.vitalskin"
             "${CMAKE_CURRENT_SOURCE_DIR}/melody_atoms/scales.json")
+# The plugin is a shared library: on Linux its static parts must be position independent
+set_target_properties(CorpuscularData PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 set(CORPUSCULAR_INCLUDES
     src/common src/common/wavetable
