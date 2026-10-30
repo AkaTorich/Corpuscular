@@ -23,6 +23,9 @@ Author of the changes: AkaTorich, 2026.
     MODE, KEY, SCALE GROUP, SCALE and the mode list open Vital's popup list (click the middle; the sides step).
     SAVE stores the pattern with all ARP settings in `Documents\Corpuscular\Arps\*.corparp` (Vital's save dialog);
     SAVED ARP steps through them with its arrows, a click on the name opens Vital's file browser. Loading keeps ON as it is.
+    DRAG MIDI: drag it into the DAW to drop the pattern as a MIDI clip (as it plays: RATE, GATE, OCTAVE, the clip
+    as long as the pattern); a click saves the same `.mid` to `Documents\Corpuscular\Arps\MIDI` (a new file each time,
+    named after the saved arp or the key and mode). `ArpSequencer::writeMidiFile` writes it.
   - OSC — the three oscillators and the sample source, full height.
   - ROUTE — where every source goes (filter 1, filter 2, both, effects, direct) and whether the filters run in series, as a diagram and a grid.
   - FILTER — filter 1 and filter 2, large.

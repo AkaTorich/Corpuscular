@@ -135,6 +135,44 @@ void ArpSequencer::rebuildSchedule() {
   });
 }
 
+bool ArpSequencer::writeMidiFile(const File& file, const String& track_name) const {
+  static constexpr int kTicksPerQuarter = 960;
+
+  MidiMessageSequence track;
+  int length_ticks = 0;
+  {
+    ScopedLock lock(lock_);
+    // A step is a sixteenth times the rate factor
+    double ticks_per_step = kTicksPerQuarter * rateFactor(rate_.load()) / 4.0;
+    int transpose = 12 * octave_.load();
+    for (const Event& event : schedule_) {
+      int note = jlimit(0, 127, event.note + transpose);
+      double time = std::round(event.time * ticks_per_step);
+      if (event.on)
+        track.addEvent(MidiMessage::noteOn(1, note, (uint8)jlimit(1, 127, event.velocity)), time);
+      else
+        track.addEvent(MidiMessage::noteOff(1, note), time);
+    }
+    length_ticks = roundToInt(length_ * ticks_per_step);
+  }
+
+  track.addEvent(MidiMessage::textMetaEvent(3, track_name), 0.0);
+  track.addEvent(MidiMessage::timeSignatureMetaEvent(4, 4), 0.0);
+  track.addEvent(MidiMessage::endOfTrack(), length_ticks);
+  track.sort();
+  track.updateMatchedPairs();
+
+  MidiFile midi;
+  midi.setTicksPerQuarterNote(kTicksPerQuarter);
+  midi.addTrack(track);
+
+  file.deleteFile();
+  FileOutputStream stream(file);
+  if (!stream.openedOk())
+    return false;
+  return midi.writeTo(stream, 1);
+}
+
 json ArpSequencer::toJson() const {
   ScopedLock lock(lock_);
   json notes = json::array();

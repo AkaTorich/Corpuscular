@@ -40,8 +40,8 @@ namespace {
 
   // Share of the row each control takes; row A is the generator, row B the player and the roll tools
   const float kArpRowA[] = { 0.055f, 0.065f, 0.10f, 0.065f, 0.12f, 0.15f, 0.07f, 0.065f, 0.07f, 0.13f, 0.11f };
-  const float kArpRowB[] = { 0.09f, 0.08f, 0.08f, 0.085f, 0.055f, 0.055f, 0.06f, 0.06f, 0.045f, 0.06f, 0.06f, 0.06f,
-                             0.055f, 0.155f };
+  const float kArpRowB[] = { 0.08f, 0.08f, 0.08f, 0.075f, 0.055f, 0.055f, 0.06f, 0.06f, 0.045f, 0.06f, 0.06f, 0.06f,
+                             0.055f, 0.065f, 0.11f };
   // Clicking the middle of a list control opens the list, its sides step through it
   constexpr float kArpListSide = 0.22f;
   constexpr int kArpRowACount = 11;
@@ -57,7 +57,7 @@ namespace {
 }
 
 ArpSection::ArpSection() : SynthSection("ARP"), loaded_(false), mode_(kPsyArp), key_(kArpDefaultKey),
-                           scale_group_(0), scale_(1) {
+                           scale_group_(0), scale_(1), midi_pressed_(false) {
   for (int i = 0; i < 4; ++i)
     params_[i] = kArpParamDefaults[kPsyArp][i];
 
@@ -244,6 +244,7 @@ void ArpSection::generate() {
   int length = std::max(16, ((end + 15) / 16) * 16);
   int root = 60 + key_ % 12;
   info_ = info.joinIntoString("  ");
+  midi_status_.clear();
 
   piano_roll_.setPattern(notes, length, true);
   piano_roll_.fitToPattern();
@@ -338,6 +339,7 @@ String ArpSection::controlValue(int control) const {
     case kRedo: return "REDO";
     case kClear: return "CLEAR";
     case kSave: return "SAVE";
+    case kMidi: return "DRAG MIDI";
     case kSavedArp: return current_arp_file_ == File() ? String("-") : current_arp_file_.getFileNameWithoutExtension();
     case kMode: return kArpModeNames[mode_];
     case kKey: return mg::MusicData::tonalities()[key_];
@@ -458,6 +460,11 @@ void ArpSection::mouseDown(const MouseEvent& e) {
 
     float position = (e.position.x - bounds.getX()) / bounds.getWidth();
     int side = position < kArpListSide ? -1 : position > 1.0f - kArpListSide ? 1 : 0;
+    // DRAG MIDI decides on mouse up (click) or on the first drag (drag to the DAW)
+    if (control == kMidi) {
+      midi_pressed_ = true;
+      return;
+    }
     if (isButton(control))
       clickButton(control);
     else if (control == kSavedArp) {
@@ -475,6 +482,57 @@ void ArpSection::mouseDown(const MouseEvent& e) {
     repaintBackground();
     return;
   }
+}
+
+void ArpSection::mouseDrag(const MouseEvent& e) {
+  static constexpr int kDragStartDistance = 6;
+  if (midi_pressed_ && e.getDistanceFromDragStart() > kDragStartDistance * size_ratio_) {
+    midi_pressed_ = false;
+    dragMidiClip();
+  }
+}
+
+void ArpSection::mouseUp(const MouseEvent& e) {
+  if (!midi_pressed_)
+    return;
+
+  midi_pressed_ = false;
+  File file = writeMidiClip();
+  midi_status_ = file == File() ? String("Can't write the MIDI file") : "MIDI saved: " + file.getFullPathName();
+  repaintBackground();
+}
+
+// MIDI clips -----------------------------------------------------------------------------------------------------
+
+File ArpSection::writeMidiClip() {
+  ArpSequencer* seq = sequencer();
+  if (seq == nullptr)
+    return File();
+
+  File folder = arpFolder().getChildFile("MIDI");
+  if (!folder.isDirectory() && !folder.createDirectory())
+    return File();
+
+  // Named after the saved arp, otherwise after the key and the mode; a new file each time,
+  // so a clip already in the DAW never changes under it
+  String name = current_arp_file_ != File() ? current_arp_file_.getFileNameWithoutExtension()
+                                            : String("Arp ") + controlValue(kKey) + " " + kArpModeNames[mode_];
+  name = File::createLegalFileName(name);
+  File file = folder.getNonexistentChildFile(name, ".mid", false);
+  return seq->writeMidiFile(file, name) ? file : File();
+}
+
+void ArpSection::dragMidiClip() {
+  File file = writeMidiClip();
+  if (file == File()) {
+    midi_status_ = "Can't write the MIDI file";
+    repaintBackground();
+    return;
+  }
+
+  midi_status_ = "MIDI clip: " + file.getFileName();
+  repaintBackground();
+  DragAndDropContainer::performExternalDragDropOfFiles(StringArray(file.getFullPathName()), false, this);
 }
 
 // Lists ----------------------------------------------------------------------------------------------------------
@@ -683,5 +741,5 @@ void ArpSection::paintBackground(Graphics& g) {
 
   g.setColour(text.withMultipliedAlpha(0.75f));
   g.setFont(Fonts::instance()->proportional_regular().withPointHeight(font_height * 0.85f));
-  g.drawFittedText(info_, infoBounds().toNearestInt(), Justification::centredLeft, 1, 0.6f);
+  g.drawFittedText(midi_status_.isEmpty() ? info_ : midi_status_, infoBounds().toNearestInt(), Justification::centredLeft, 1, 0.6f);
 }

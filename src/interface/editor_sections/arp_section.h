@@ -28,6 +28,8 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     void reset() override;
     void visibilityChanged() override;
     void mouseDown(const MouseEvent& e) override;
+    void mouseDrag(const MouseEvent& e) override;
+    void mouseUp(const MouseEvent& e) override;
     void timerCallback() override;
     void patternEdited() override;
 
@@ -40,8 +42,12 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     enum Control {
       kOn, kLatch, kMode, kKey, kScaleGroup, kScale, kParam1, kParam2, kParam3, kParam4, kGenerate,
       kRate, kOctave, kGate, kBars, kZoomTimeOut, kZoomTimeIn, kZoomNotesOut, kZoomNotesIn, kFit,
-      kUndo, kRedo, kClear, kSave, kSavedArp, kNumControls
+      kUndo, kRedo, kClear, kSave, kMidi, kSavedArp, kNumControls
     };
+
+    // DRAG MIDI: dragged out, the pattern goes to the DAW as a MIDI clip; clicked, it is saved as a .mid file
+    File writeMidiClip();
+    void dragMidiClip();
 
     bool hasList(int control) const;
     PopupItems listItems(int control) const;
@@ -86,6 +92,8 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     int params_[4];
     String info_;
     File current_arp_file_;
+    bool midi_pressed_;
+    String midi_status_;      // shown instead of the melody info until the next GENERATE
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArpSection)
 };
