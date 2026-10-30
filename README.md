@@ -8,7 +8,7 @@ Author of the changes: AkaTorich, 2026.
 ## Changes to the original code
 
 - **Name and identity.** Product name Corpuscular by AkaTorich, own plugin codes (`Ovkx` / `Crpc`),
-  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.0.
+  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.1.
 - **Sound engine** unchanged: the same preset renders bit for bit the same audio as before the changes.
 - **Tabs follow the path of the sound:** ARP → OSC → ROUTE → FILTER → AMP → FX → MOD → MATRIX → SETUP → GEN.
   - ARP — a built-in sequencer with the Melody Atoms generators (PSY ARP, ARP with 4th-bar endings, ARP STYLED,

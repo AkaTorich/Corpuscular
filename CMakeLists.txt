@@ -3,7 +3,7 @@
 # macOS и Linux — обычный cmake, см. README и .github/workflows/build.yml.
 cmake_minimum_required(VERSION 3.15)
 
-project(Corpuscular VERSION 0.1.0 LANGUAGES C CXX)
+project(Corpuscular VERSION 0.1.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

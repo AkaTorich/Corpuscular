@@ -13,7 +13,7 @@ namespace corpuscular {
   // Product identity
   constexpr const char* kName = "Corpuscular";
   constexpr const char* kFolderName = "Corpuscular";
-  constexpr const char* kVersion = "0.1.0";
+  constexpr const char* kVersion = "0.1.1";
 
   // Version written into presets, skins and wavetables. It stays at the Vital version the format comes from,
   // so files open both in Corpuscular and in Vital 1.0.x (Vital rejects files from a "newer" major.minor).
