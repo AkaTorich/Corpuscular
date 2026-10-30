@@ -173,6 +173,46 @@ bool ArpSequencer::writeMidiFile(const File& file, const String& track_name) con
   return midi.writeTo(stream, 1);
 }
 
+bool ArpSequencer::readMidiFile(const File& file, int rate, std::vector<Note>& notes, int& length) {
+  static constexpr int kStepsPerBar = 16;
+
+  FileInputStream stream(file);
+  MidiFile midi;
+  if (!stream.openedOk() || !midi.readFrom(stream) || midi.getTimeFormat() <= 0)
+    return false;
+
+  double ticks_per_step = midi.getTimeFormat() * rateFactor(rate) / 4.0;
+  double end_ticks = 0.0;
+  notes.clear();
+  for (int t = 0; t < midi.getNumTracks(); ++t) {
+    MidiMessageSequence track(*midi.getTrack(t));
+    track.updateMatchedPairs();
+    for (int i = 0; i < track.getNumEvents(); ++i) {
+      const MidiMessage& message = track.getEventPointer(i)->message;
+      double time = message.getTimeStamp();
+      if (message.isEndOfTrackMetaEvent())
+        end_ticks = std::max(end_ticks, time);
+      if (!message.isNoteOn() || (int)notes.size() >= kMaxNotes)
+        continue;
+
+      double off = track.getTimeOfMatchingKeyUp(i);
+      int start = roundToInt(time / ticks_per_step);
+      int steps = off > time ? std::max(1, roundToInt((off - time) / ticks_per_step)) : 1;
+      if (start >= kMaxSteps)
+        continue;
+      notes.push_back({ message.getNoteNumber(), start, steps, message.getVelocity() });
+      end_ticks = std::max(end_ticks, off > time ? off : time + ticks_per_step);
+    }
+  }
+  if (notes.empty())
+    return false;
+
+  // Whole bars that hold every note and the clip's own end
+  int end_steps = (int)std::ceil(end_ticks / ticks_per_step - 1e-6);
+  length = jlimit(kStepsPerBar, kMaxSteps, ((end_steps + kStepsPerBar - 1) / kStepsPerBar) * kStepsPerBar);
+  return true;
+}
+
 json ArpSequencer::toJson() const {
   ScopedLock lock(lock_);
   json notes = json::array();

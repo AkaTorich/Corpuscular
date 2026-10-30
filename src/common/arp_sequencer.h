@@ -68,6 +68,8 @@ class ArpSequencer {
     // Message thread: the pattern as it plays (rate, gate, octave) as a standard MIDI file,
     // one track, the clip as long as the pattern
     bool writeMidiFile(const File& file, const String& track_name) const;
+    // A MIDI file (all tracks) as a pattern on the step grid of `rate`; the length is whole bars
+    static bool readMidiFile(const File& file, int rate, std::vector<Note>& notes, int& length);
 
     // Audio thread: rewrites `midi` (note input → generated notes, other messages kept)
     void process(MidiBuffer& midi, int num_samples, double sample_rate, double bpm,

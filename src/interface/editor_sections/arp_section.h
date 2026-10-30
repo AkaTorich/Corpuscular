@@ -17,7 +17,8 @@
 // ARP tab: the Melody Atoms generators write a melody, the piano roll edits it and the built-in sequencer plays it
 // from the note held in the DAW (or on a keyboard) as the tonic. Generating works while it plays.
 // The pattern with all ARP settings can be saved to Documents\Corpuscular\Arps and picked back from there.
-class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Timer, public SaveSection::Listener {
+class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Timer, public SaveSection::Listener,
+                   public FileDragAndDropTarget {
   public:
     enum Mode { kPsyArp, kArpRiff, kArpStyled, kBass, kPad, kNumModes };
 
@@ -32,6 +33,12 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     void mouseUp(const MouseEvent& e) override;
     void timerCallback() override;
     void patternEdited() override;
+
+    // A MIDI clip dropped from the DAW (or a .mid file) becomes the pattern
+    bool isInterestedInFileDrag(const StringArray& files) override;
+    void fileDragEnter(const StringArray& files, int x, int y) override;
+    void fileDragExit(const StringArray& files) override;
+    void filesDropped(const StringArray& files, int x, int y) override;
 
     // Saved arps
     void loadFile(const File& file) override;
@@ -48,6 +55,7 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     // DRAG MIDI: dragged out, the pattern goes to the DAW as a MIDI clip; clicked, it is saved as a .mid file
     File writeMidiClip();
     void dragMidiClip();
+    void importMidiClip(const File& file);
 
     bool hasList(int control) const;
     PopupItems listItems(int control) const;
@@ -93,6 +101,7 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     String info_;
     File current_arp_file_;
     bool midi_pressed_;
+    bool midi_drop_hover_;
     String midi_status_;      // shown instead of the melody info until the next GENERATE
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArpSection)

@@ -57,7 +57,7 @@ namespace {
 }
 
 ArpSection::ArpSection() : SynthSection("ARP"), loaded_(false), mode_(kPsyArp), key_(kArpDefaultKey),
-                           scale_group_(0), scale_(1), midi_pressed_(false) {
+                           scale_group_(0), scale_(1), midi_pressed_(false), midi_drop_hover_(false) {
   for (int i = 0; i < 4; ++i)
     params_[i] = kArpParamDefaults[kPsyArp][i];
 
@@ -535,6 +535,60 @@ void ArpSection::dragMidiClip() {
   DragAndDropContainer::performExternalDragDropOfFiles(StringArray(file.getFullPathName()), false, this);
 }
 
+namespace {
+  bool arpIsMidiFile(const String& path) {
+    return path.endsWithIgnoreCase(".mid") || path.endsWithIgnoreCase(".midi");
+  }
+}
+
+bool ArpSection::isInterestedInFileDrag(const StringArray& files) {
+  for (const String& file : files) {
+    if (arpIsMidiFile(file))
+      return true;
+  }
+  return false;
+}
+
+void ArpSection::fileDragEnter(const StringArray& files, int x, int y) {
+  midi_drop_hover_ = true;
+  repaintBackground();
+}
+
+void ArpSection::fileDragExit(const StringArray& files) {
+  midi_drop_hover_ = false;
+  repaintBackground();
+}
+
+void ArpSection::filesDropped(const StringArray& files, int x, int y) {
+  midi_drop_hover_ = false;
+  for (const String& path : files) {
+    if (arpIsMidiFile(path)) {
+      importMidiClip(File(path));
+      break;
+    }
+  }
+  repaintBackground();
+}
+
+void ArpSection::importMidiClip(const File& file) {
+  ArpSequencer* seq = sequencer();
+  std::vector<ArpSequencer::Note> notes;
+  int length = 0;
+  if (seq == nullptr || !ArpSequencer::readMidiFile(file, seq->getRate(), notes, length)) {
+    midi_status_ = "No notes in " + file.getFileName();
+    return;
+  }
+
+  // Like a generated melody: the notes in the current KEY, UNDO brings the old pattern back
+  piano_roll_.setPattern(notes, length, true);
+  piano_roll_.fitToPattern();
+  seq->setPattern(notes, length, 60 + key_ % 12);
+  current_arp_file_ = File();
+  info_ = "From MIDI: " + file.getFileNameWithoutExtension();
+  midi_status_ = "MIDI loaded: " + file.getFileName() + ", " + String((int)notes.size()) + " notes";
+  saveUiState();
+}
+
 // Lists ----------------------------------------------------------------------------------------------------------
 
 bool ArpSection::hasList(int control) const {
@@ -742,4 +796,11 @@ void ArpSection::paintBackground(Graphics& g) {
   g.setColour(text.withMultipliedAlpha(0.75f));
   g.setFont(Fonts::instance()->proportional_regular().withPointHeight(font_height * 0.85f));
   g.drawFittedText(midi_status_.isEmpty() ? info_ : midi_status_, infoBounds().toNearestInt(), Justification::centredLeft, 1, 0.6f);
+
+  // A MIDI clip is being dragged over the tab: a frame around the notes it will replace
+  if (midi_drop_hover_) {
+    float thickness = std::max(2.0f, 2.0f * size_ratio_);
+    g.setColour(findColour(Skin::kRotaryArc, true));
+    g.drawRoundedRectangle(rollBounds().expanded(thickness * 1.5f), findValue(Skin::kLabelBackgroundRounding), thickness);
+  }
 }

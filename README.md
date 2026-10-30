@@ -26,6 +26,9 @@ Author of the changes: AkaTorich, 2026.
     DRAG MIDI: drag it into the DAW to drop the pattern as a MIDI clip (as it plays: RATE, GATE, OCTAVE, the clip
     as long as the pattern); a click saves the same `.mid` to `Documents\Corpuscular\Arps\MIDI` (a new file each time,
     named after the saved arp or the key and mode). `ArpSequencer::writeMidiFile` writes it.
+    The other way: a MIDI clip dragged from the DAW (or a `.mid`/`.midi` file) dropped on the tab becomes the pattern —
+    all tracks, on the grid of the current RATE, whole bars, in the current KEY; UNDO brings the old pattern back
+    (`ArpSequencer::readMidiFile`).
   - OSC — the three oscillators and the sample source, full height.
   - ROUTE — where every source goes (filter 1, filter 2, both, effects, direct) and whether the filters run in series, as a diagram and a grid.
   - FILTER — filter 1 and filter 2, large.
