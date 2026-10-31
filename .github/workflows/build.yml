@@ -19,7 +19,7 @@ jobs:
             os: windows-latest
             package: Corpuscular-Windows-x64.zip
           - name: macOS
-            os: macos-14
+            os: macos-15
             package: Corpuscular-macOS.zip
           - name: Linux
             os: ubuntu-22.04
