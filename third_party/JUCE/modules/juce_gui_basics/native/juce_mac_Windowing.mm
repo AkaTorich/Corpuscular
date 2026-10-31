@@ -553,6 +553,12 @@ Image juce_createIconForFile (const File& file)
 
 static Image createNSWindowSnapshot (NSWindow* nsWindow)
 {
+   // Corpuscular: CGWindowListCreateImage is unavailable when the minimum macOS is 15 or newer
+   // (juceaide is built that way on current SDKs); no window snapshot there
+   #if defined (MAC_OS_X_VERSION_MIN_REQUIRED) && MAC_OS_X_VERSION_MIN_REQUIRED >= 150000
+    ignoreUnused (nsWindow);
+    return {};
+   #else
     JUCE_AUTORELEASEPOOL
     {
         CGImageRef screenShot = CGWindowListCreateImage (CGRectNull,
@@ -573,6 +579,7 @@ static Image createNSWindowSnapshot (NSWindow* nsWindow)
 
         return result;
     }
+   #endif
 }
 
 Image createSnapshotOfNativeWindow (void*);

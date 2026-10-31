@@ -109,7 +109,7 @@ Author of the changes: AkaTorich, 2026.
 | `default.vitalskin` | Corpuscular TI skin built into the binary |
 | `branding/` | Logo sources, icons, preview, the original Vital skin |
 | `icons/corpuscular_*.svg` | Logo as used inside the window |
-| `third_party/JUCE` | JUCE 6.0.5 with the original project's module changes plus the network switch |
+| `third_party/JUCE` | JUCE 6.0.5 with the original project's module changes, the network switch and a fix for macOS 15 SDKs (`juce_mac_Windowing.mm`) |
 | `fonts/` | Built-in fonts and their licenses (`fonts/README.txt`) |
 
 Every Vital file changed for Corpuscular carries the line `Modified for Corpuscular, 2026.` in its header.
