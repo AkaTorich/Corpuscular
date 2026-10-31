@@ -11,7 +11,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS YES)
 
 add_subdirectory(third_party/JUCE)
 
-set(CORPUSCULAR_COMPANY "AkaTorich")
+# The author; JUCE shows it in the DAW as the plugin maker (its field is called COMPANY_NAME)
+set(CORPUSCULAR_AUTHOR "AkaTorich")
 set(CORPUSCULAR_NAME "Corpuscular")
 
 # Вшиваемые файлы: значки, шрифты, строи, скин по умолчанию
@@ -111,7 +112,7 @@ endfunction()
 # Плагин VST3
 juce_add_plugin(CorpuscularPlugin
     PRODUCT_NAME "${CORPUSCULAR_NAME}"
-    COMPANY_NAME "${CORPUSCULAR_COMPANY}"
+    COMPANY_NAME "${CORPUSCULAR_AUTHOR}"
     BUNDLE_ID "com.ovk.corpuscular"
     ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/branding/icon_512.png"
     ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/branding/icon_256.png"
@@ -135,7 +136,7 @@ corpuscular_common(CorpuscularPlugin)
 # Отдельная программа (со своей командной строкой: --headless --render и др.)
 juce_add_gui_app(CorpuscularApp
     PRODUCT_NAME "${CORPUSCULAR_NAME}"
-    COMPANY_NAME "${CORPUSCULAR_COMPANY}"
+    COMPANY_NAME "${CORPUSCULAR_AUTHOR}"
     BUNDLE_ID "com.ovk.corpuscular.app"
     ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/branding/icon_512.png"
     ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/branding/icon_256.png")
