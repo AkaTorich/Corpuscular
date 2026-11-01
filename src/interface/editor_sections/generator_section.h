@@ -55,6 +55,10 @@ class GeneratorSection : public SynthSection {
     Rectangle<float> tableOptionBox(int option) const;
     Rectangle<float> tableTargetButton(int index) const;
     Rectangle<float> tableExportButton() const;
+    Rectangle<float> skinHarmonyBox() const;
+    Rectangle<float> skinNameBox() const;
+    Rectangle<float> newSkinButton() const;
+    Rectangle<float> defaultSkinButton() const;
     Rectangle<float> statusArea() const;
     int numTypeRows() const;
 
@@ -81,10 +85,16 @@ class GeneratorSection : public SynthSection {
     void wavetableToOscillator(int index);
     void exportWavetable();
     void newBankName();
+    // SKINS row: a new acid skin by the chosen colour harmony, put on the window and kept in the skin library
+    void newSkinName();
+    void makeSkin();
+    void defaultSkin();
+    void applySkin(const File& file);
     void setStatus(const String& text);
 
     void paintButton(Graphics& g, Rectangle<float> bounds, const String& text, bool lit, float font_height);
     void paintStepper(Graphics& g, Rectangle<float> bounds, const String& title, const String& value, float font_height);
+    void paintDivider(Graphics& g, Rectangle<float> bounds, const String& title, float font_height);
 
     std::function<void(int, const File&)> wavetable_loader_;
     std::function<void()> bank_viewer_;
@@ -108,6 +118,9 @@ class GeneratorSection : public SynthSection {
 
     std::vector<File> history_;
     int history_index_;
+
+    int skin_harmony_;
+    String skin_name_;
 
     // Hears every preset made on the tab before it is loaded (created on first use)
     std::unique_ptr<PresetAudition> audition_;

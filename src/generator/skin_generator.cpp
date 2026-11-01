@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <random>
 
 namespace corpuscular {
 namespace gen {
@@ -102,6 +103,8 @@ namespace gen {
       double roles[5];
       int shape;                 // 0 default, 1 rounded, 2 sharp
       const char* side_panel;    // ARGB
+      double min_lightness = 0.25;  // the darkest a coloured role may get
+      double max_lightness = 0.85;  // the lightest
     };
 
     const std::vector<SkinGenTheme>& skinGenThemes() {
@@ -163,7 +166,7 @@ namespace gen {
       int role = skinGenRole(h);
       double new_hue = theme.roles[role] + (h - skinGenRoleCenter(role)) * 0.5;
       double new_saturation = std::min(1.0, s * theme.saturation);
-      double new_lightness = std::max(0.25, std::min(0.85, l + theme.lightness_shift));
+      double new_lightness = std::max(theme.min_lightness, std::min(theme.max_lightness, l + theme.lightness_shift));
       return SkinGenColour::fromHsl(colour.a, new_hue, new_saturation, new_lightness).text();
     }
 
@@ -213,6 +216,74 @@ namespace gen {
         skin["Widget Fill Boost"] = 1.6;
       }
     }
+
+    nlohmann::json skinGenApply(const nlohmann::json& base, const SkinGenTheme& theme) {
+      nlohmann::json skin = base;
+      for (auto it = skin.begin(); it != skin.end(); ++it) {
+        if (it.value().is_string())
+          it.value() = skinGenRecolor(it.key(), it.value().get<std::string>(), theme);
+      }
+
+      if (skin.count("overrides") && skin["overrides"].is_object()) {
+        for (auto section = skin["overrides"].begin(); section != skin["overrides"].end(); ++section) {
+          if (!section.value().is_object())
+            continue;
+          for (auto it = section.value().begin(); it != section.value().end(); ++it) {
+            if (it.value().is_string())
+              it.value() = skinGenRecolor(it.key(), it.value().get<std::string>(), theme);
+          }
+        }
+      }
+
+      skinGenShape(skin, theme.shape);
+      skinGenEnsureContrast(skin, "Body Text", "Body", 4.5);
+      skinGenEnsureContrast(skin, "Heading Text", "Body Heading Background", 4.5);
+      skinGenEnsureContrast(skin, "Preset Text", "Popup Selector Background", 4.5);
+      skinGenEnsureContrast(skin, "Text Component Text", "Text Component Background", 4.5);
+      skinGenEnsureContrast(skin, "UI Button Text", "UI Button", 3.5);
+      skinGenEnsureContrast(skin, "Rotary Arc", "Body", 2.2);
+      skinGenEnsureContrast(skin, "Widget Primary 1", "Widget Background", 2.5);
+      skinGenEnsureContrast(skin, "Power Button On", "Body", 2.2);
+      skinGenEnsureContrast(skin, "UI Action Button", "Body", 1.8);
+
+      skin["Side Panel"] = theme.side_panel;
+      return skin;
+    }
+
+    enum SkinGenHarmony {
+      kComplementary, kAnalogous, kTriadic, kSplitComplementary, kSquare, kMonochrome,
+      kAccentedAnalogous, kDoubleSplit, kRectangle, kClash, kAchromaticAccent, kWarmCool, kNumHarmonies
+    };
+
+    const char* kSkinGenHarmonyNames[kNumHarmonies] = {
+      "Complementary", "Analogous", "Triadic", "Split Complementary", "Square", "Monochrome",
+      "Accented Analogous", "Double Split", "Rectangle", "Clash", "Achromatic Accent", "Warm & Cool"
+    };
+
+    // The hues a harmony rule takes from the key hue, in the order vital's colour roles get them
+    // (main, modulation, warm, hot, cold); a rule with fewer hues repeats them
+    std::vector<double> skinGenHarmonyHues(int harmony, double key, std::mt19937& random) {
+      std::uniform_real_distribution<double> jitter(-8.0, 8.0);
+      switch (harmony) {
+        case kComplementary:      return { key, key + 180.0 };
+        case kAnalogous:          return { key, key + 30.0, key - 30.0 };
+        case kTriadic:            return { key, key + 120.0, key + 240.0 };
+        case kSplitComplementary: return { key, key + 150.0, key + 210.0 };
+        case kSquare:             return { key, key + 90.0, key + 180.0, key + 270.0 };
+        case kMonochrome:         return { key, key + jitter(random), key + jitter(random) };
+        case kAccentedAnalogous:  return { key, key + 180.0, key + 30.0, key - 30.0 };
+        case kDoubleSplit:        return { key - 30.0, key + 150.0, key + 30.0, key + 210.0 };
+        case kRectangle:          return { key, key + 180.0, key + 60.0, key + 240.0 };
+        case kClash:              return { key, key + 90.0 };
+        case kAchromaticAccent:   return { key };
+        default: {
+          // Warm against cool: the key hue is moved into the warm half, the cool one sits across
+          double warm = std::fmod(std::fmod(key, 60.0) + 60.0, 60.0) - 10.0;
+          double cool = 180.0 + std::fmod(std::fmod(key, 70.0) + 70.0, 70.0);
+          return { warm, cool, warm + 25.0, cool + 30.0 };
+        }
+      }
+    }
   }
 
   std::vector<std::string> skinGenres() {
@@ -229,37 +300,70 @@ namespace gen {
       if (genre == candidate.name)
         theme = &candidate;
     }
+    return skinGenApply(base, *theme);
+  }
 
-    nlohmann::json skin = base;
-    for (auto it = skin.begin(); it != skin.end(); ++it) {
-      if (it.value().is_string())
-        it.value() = skinGenRecolor(it.key(), it.value().get<std::string>(), *theme);
-    }
+  std::vector<std::string> skinHarmonies() {
+    return std::vector<std::string>(kSkinGenHarmonyNames, kSkinGenHarmonyNames + kNumHarmonies);
+  }
 
-    if (skin.count("overrides") && skin["overrides"].is_object()) {
-      for (auto section = skin["overrides"].begin(); section != skin["overrides"].end(); ++section) {
-        if (!section.value().is_object())
-          continue;
-        for (auto it = section.value().begin(); it != section.value().end(); ++it) {
-          if (it.value().is_string())
-            it.value() = skinGenRecolor(it.key(), it.value().get<std::string>(), *theme);
+  nlohmann::json makeHarmonySkin(const nlohmann::json& base, int harmony, uint32_t seed) {
+    std::mt19937 random(seed);
+    auto range = [&random](double low, double high) { return std::uniform_real_distribution<double>(low, high)(random); };
+    harmony = std::min(std::max(harmony, 0), kNumHarmonies - 1);
+
+    // Acid psytrance colours only: the key hue is one of the neon hues, every other hue of the rule is pulled
+    // to the nearest of them, so the harmony keeps its shape but nothing comes out muddy
+    static const double kAcidHues[] = { 22.0, 36.0, 58.0, 85.0, 115.0, 158.0, 174.0, 188.0, 205.0, 225.0, 275.0, 300.0, 320.0, 345.0 };
+    auto acid = [&range](double hue) {
+      hue = std::fmod(std::fmod(hue, 360.0) + 360.0, 360.0);
+      double best = kAcidHues[0];
+      double best_distance = 360.0;
+      for (double candidate : kAcidHues) {
+        double distance = std::abs(hue - candidate);
+        distance = std::min(distance, 360.0 - distance);
+        if (distance < best_distance) {
+          best_distance = distance;
+          best = candidate;
         }
       }
+      return best + range(-5.0, 5.0);
+    };
+
+    double key = kAcidHues[random() % (sizeof(kAcidHues) / sizeof(kAcidHues[0]))];
+    std::vector<double> hues = skinGenHarmonyHues(harmony, key, random);
+    for (double& hue : hues)
+      hue = acid(hue);
+
+    SkinGenTheme theme {};
+    theme.name = kSkinGenHarmonyNames[harmony];
+    // Night-stage dark: near black with a deep ultraviolet, blue or key-hue cast
+    theme.light = false;
+    // (a warm cast on near black reads as brown, so the background takes a cool one then)
+    bool warm_key = hues[0] < 75.0 || hues[0] > 330.0;
+    theme.tint_hue = !warm_key && range(0.0, 1.0) < 0.5 ? hues[0] : range(235.0, 285.0);
+    theme.tint_saturation = harmony == kAchromaticAccent ? 0.0 : range(0.2, 0.45);
+    theme.lift = range(-0.16, -0.1);
+    theme.spread = range(1.0, 1.12);
+    // Full neon: colours pushed to full saturation and lifted to glow
+    theme.saturation = range(1.7, 2.3);
+    // Neon is full saturation at middle lightness: lighter turns pastel, darker turns muddy
+    theme.lightness_shift = range(0.0, 0.06);
+    theme.min_lightness = 0.48;
+    theme.max_lightness = 0.6;
+    for (int role = 0; role < 5; ++role) {
+      // A repeated hue is nudged so roles stay apart
+      int cycle = role / static_cast<int>(hues.size());
+      theme.roles[role] = hues[role % hues.size()] + cycle * (harmony == kMonochrome ? 6.0 : 12.0);
     }
+    theme.shape = static_cast<int>(random() % 3);
 
-    skinGenShape(skin, theme->shape);
-    skinGenEnsureContrast(skin, "Body Text", "Body", 4.5);
-    skinGenEnsureContrast(skin, "Heading Text", "Body Heading Background", 4.5);
-    skinGenEnsureContrast(skin, "Preset Text", "Popup Selector Background", 4.5);
-    skinGenEnsureContrast(skin, "Text Component Text", "Text Component Background", 4.5);
-    skinGenEnsureContrast(skin, "UI Button Text", "UI Button", 3.5);
-    skinGenEnsureContrast(skin, "Rotary Arc", "Body", 2.2);
-    skinGenEnsureContrast(skin, "Widget Primary 1", "Widget Background", 2.5);
-    skinGenEnsureContrast(skin, "Power Button On", "Body", 2.2);
-    skinGenEnsureContrast(skin, "UI Action Button", "Body", 1.8);
-
-    skin["Side Panel"] = theme->side_panel;
-    return skin;
+    // Side panels: a dark neon-tinted strip in the key hue, none for achromatic
+    std::string side_panel = "00000000";
+    if (harmony != kAchromaticAccent)
+      side_panel = SkinGenColour::fromHsl(1.0, theme.tint_hue, range(0.6, 0.9), range(0.1, 0.18)).text();
+    theme.side_panel = side_panel.c_str();
+    return skinGenApply(base, theme);
   }
 
 } // namespace gen

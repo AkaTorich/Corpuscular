@@ -17,6 +17,7 @@
 #include "preset_audition.h"
 #include "preset_mutator.h"
 #include "skin.h"
+#include "skin_generator.h"
 #include "synth_base.h"
 #include "synth_gui_interface.h"
 #include "wavetable_generator.h"
@@ -81,10 +82,11 @@ namespace {
 GeneratorSection::GeneratorSection() : SynthSection("GEN"), selected_type_(0), random_count_(0),
                                        scale_group_(-1), scale_(0), melody_(0), step_(0), vocoder_(kVocoderOff),
                                        table_type_(0), table_frames_(3), table_size_(3),
-                                       table_smooth_(false), table_format_(0), history_index_(-1) {
+                                       table_smooth_(false), table_format_(0), history_index_(-1), skin_harmony_(0) {
   types_ = corpuscular::gen::presetTypes();
   bank_counts_.assign(types_.size(), 0);
   newBankName();
+  newSkinName();
   loadHistory();
   setInterceptsMouseClicks(true, false);
 }
@@ -112,7 +114,7 @@ int GeneratorSection::numTypeRows() const {
 }
 
 Rectangle<float> GeneratorSection::typeCell(int index) const {
-  Rectangle<float> grid = band(0.0f, 0.28f);
+  Rectangle<float> grid = band(0.0f, 0.25f);
   float row_height = grid.getHeight() / numTypeRows();
   float column_width = grid.getWidth() / kGenColumns;
   int row = index / kGenColumns;
@@ -122,72 +124,96 @@ Rectangle<float> GeneratorSection::typeCell(int index) const {
 }
 
 Rectangle<float> GeneratorSection::optionBox(int option) const {
-  Rectangle<float> row = band(0.29f, 0.40f);
+  Rectangle<float> row = band(0.26f, 0.35f);
   float width = row.getWidth() / kNumOptions;
   return row.withX(row.getX() + option * width).withWidth(width).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::generateButton() const {
-  Rectangle<float> row = band(0.41f, 0.49f);
+  Rectangle<float> row = band(0.36f, 0.43f);
   return row.withWidth(row.getWidth() * 0.34f).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::comboButton() const {
-  Rectangle<float> row = band(0.41f, 0.49f);
+  Rectangle<float> row = band(0.36f, 0.43f);
   return row.withX(row.getX() + row.getWidth() * 0.34f).withWidth(row.getWidth() * 0.40f).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::similarButton() const {
-  Rectangle<float> row = band(0.41f, 0.49f);
+  Rectangle<float> row = band(0.36f, 0.43f);
   return row.withLeft(row.getX() + row.getWidth() * 0.74f).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::historyBackButton() const {
-  Rectangle<float> row = band(0.50f, 0.57f);
+  Rectangle<float> row = band(0.44f, 0.50f);
   return row.withWidth(row.getWidth() * 0.15f).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::historyNameBox() const {
-  Rectangle<float> row = band(0.50f, 0.57f);
+  Rectangle<float> row = band(0.44f, 0.50f);
   return row.withX(row.getX() + row.getWidth() * 0.15f).withWidth(row.getWidth() * 0.70f).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::historyForwardButton() const {
-  Rectangle<float> row = band(0.50f, 0.57f);
+  Rectangle<float> row = band(0.44f, 0.50f);
   return row.withLeft(row.getX() + row.getWidth() * 0.85f).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::randomCountBox() const {
-  Rectangle<float> row = band(0.58f, 0.69f);
+  Rectangle<float> row = band(0.51f, 0.60f);
   return row.withWidth(row.getWidth() * 0.25f).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::bankNameBox() const {
-  Rectangle<float> row = band(0.58f, 0.69f);
+  Rectangle<float> row = band(0.51f, 0.60f);
   return row.withX(row.getX() + row.getWidth() * 0.25f).withWidth(row.getWidth() * 0.45f).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::makeBankButton() const {
-  Rectangle<float> row = band(0.58f, 0.69f);
+  Rectangle<float> row = band(0.51f, 0.60f);
   Rectangle<float> box = row.withX(row.getX() + row.getWidth() * 0.7f).withWidth(row.getWidth() * 0.3f);
   box.removeFromTop(box.getHeight() * 0.38f);
   return box.reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::tableOptionBox(int option) const {
-  Rectangle<float> row = band(0.73f, 0.83f);
+  Rectangle<float> row = band(0.64f, 0.72f);
   float width = row.getWidth() / kNumTableOptions;
   return row.withX(row.getX() + option * width).withWidth(width).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::tableTargetButton(int index) const {
-  Rectangle<float> row = band(0.84f, 0.91f);
+  Rectangle<float> row = band(0.73f, 0.79f);
   float width = row.getWidth() / (kNumWavetableTargets + 1);
   return row.withX(row.getX() + index * width).withWidth(width).reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::tableExportButton() const {
   return tableTargetButton(kNumWavetableTargets);
+}
+
+Rectangle<float> GeneratorSection::skinHarmonyBox() const {
+  Rectangle<float> row = band(0.83f, 0.91f);
+  return row.withWidth(row.getWidth() * 0.3f).reduced(3.0f * size_ratio_);
+}
+
+Rectangle<float> GeneratorSection::skinNameBox() const {
+  Rectangle<float> row = band(0.83f, 0.91f);
+  return row.withX(row.getX() + row.getWidth() * 0.3f).withWidth(row.getWidth() * 0.34f).reduced(3.0f * size_ratio_);
+}
+
+Rectangle<float> GeneratorSection::newSkinButton() const {
+  Rectangle<float> row = band(0.83f, 0.91f);
+  Rectangle<float> box = row.withX(row.getX() + row.getWidth() * 0.64f).withWidth(row.getWidth() * 0.21f);
+  box.removeFromTop(box.getHeight() * 0.38f);
+  return box.reduced(3.0f * size_ratio_);
+}
+
+Rectangle<float> GeneratorSection::defaultSkinButton() const {
+  Rectangle<float> row = band(0.83f, 0.91f);
+  Rectangle<float> box = row.withLeft(row.getX() + row.getWidth() * 0.85f);
+  box.removeFromTop(box.getHeight() * 0.38f);
+  return box.reduced(3.0f * size_ratio_);
 }
 
 Rectangle<float> GeneratorSection::statusArea() const {
@@ -265,6 +291,57 @@ void GeneratorSection::stepTableOption(int option, int delta) {
 
 void GeneratorSection::newBankName() {
   bank_name_ = corpuscular::gen::loremWords(genSeed(), 3);
+}
+
+void GeneratorSection::newSkinName() {
+  skin_name_ = corpuscular::gen::loremWords(genSeed(), 2);
+}
+
+void GeneratorSection::applySkin(const File& file) {
+  FullInterface* gui = findParentComponentOfClass<FullInterface>();
+  if (gui == nullptr)
+    return;
+
+  Skin skin;
+  if (file == File())
+    skin.loadDefaultSkin();
+  else
+    skin.loadFromFile(file);
+  // The window's own skin from now on, as if picked in SETUP
+  gui->reloadSkin(skin);
+}
+
+void GeneratorSection::makeSkin() {
+  nlohmann::json base = nlohmann::json::parse(std::string(BinaryData::vital_original_vitalskin,
+                                                          BinaryData::vital_original_vitalskinSize), nullptr, false);
+  if (!base.is_object()) {
+    setStatus("Error: the base skin does not read");
+    return;
+  }
+
+  std::string harmony = corpuscular::gen::skinHarmonies()[skin_harmony_];
+  nlohmann::json skin = corpuscular::gen::makeHarmonySkin(base, skin_harmony_, genSeed());
+  File file = LoadSave::getUserSkinDirectory().getChildFile(genSafeName(skin_name_, "Skin") + "." +
+                                                            vital::kSkinExtension);
+  if (!file.replaceWithText(skin.dump())) {
+    setStatus("Can't write " + file.getFullPathName());
+    return;
+  }
+
+  file.copyFileTo(LoadSave::getDefaultSkin());
+  LoadSave::saveLoadedSkin(file.getFileNameWithoutExtension().toStdString());
+  String name = skin_name_;
+  newSkinName();
+  setStatus("Skin " + name + " (" + String(harmony) + ") is on and saved to " + file.getFullPathName());
+  applySkin(file);
+}
+
+void GeneratorSection::defaultSkin() {
+  File default_skin = LoadSave::getDefaultSkin();
+  if (default_skin.exists() && default_skin.hasWriteAccess())
+    default_skin.deleteFile();
+  setStatus("Default skin");
+  applySkin(File());
 }
 
 void GeneratorSection::setStatus(const String& text) {
@@ -676,15 +753,44 @@ void GeneratorSection::mouseDown(const MouseEvent& e) {
     }
   }
 
-  if (tableExportButton().contains(point))
+  if (tableExportButton().contains(point)) {
     exportWavetable();
+    return;
+  }
+
+  Rectangle<float> harmony_box = skinHarmonyBox();
+  if (harmony_box.contains(point)) {
+    int count = static_cast<int>(corpuscular::gen::skinHarmonies().size());
+    skin_harmony_ = genWrap(skin_harmony_ + (point.x < harmony_box.getCentreX() ? -1 : 1), count);
+    repaintBackground();
+    return;
+  }
+
+  if (skinNameBox().contains(point)) {
+    newSkinName();
+    repaintBackground();
+    return;
+  }
+
+  if (newSkinButton().contains(point)) {
+    makeSkin();
+    return;
+  }
+
+  if (defaultSkinButton().contains(point))
+    defaultSkin();
 }
 
 void GeneratorSection::paintButton(Graphics& g, Rectangle<float> bounds, const String& text, bool lit, float font_height) {
   float rounding = findValue(Skin::kLabelBackgroundRounding);
-  g.setColour(lit ? findColour(Skin::kRotaryArc, true) : findColour(Skin::kTextComponentBackground, true));
+  Colour fill = lit ? findColour(Skin::kRotaryArc, true) : findColour(Skin::kTextComponentBackground, true);
+  g.setColour(fill);
   g.fillRoundedRectangle(bounds, rounding);
-  g.setColour(findColour(Skin::kBodyText, true));
+  // Light text on a bright neon button does not read: the text takes the dark body colour there
+  Colour text_colour = findColour(Skin::kBodyText, true);
+  if (fill.getPerceivedBrightness() > 0.62f && text_colour.getPerceivedBrightness() > 0.5f)
+    text_colour = findColour(Skin::kBody, true);
+  g.setColour(text_colour);
   g.setFont(Fonts::instance()->proportional_regular().withPointHeight(font_height));
   g.drawFittedText(text, bounds.toNearestInt(), Justification::centred, 1, 0.7f);
 }
@@ -705,6 +811,19 @@ void GeneratorSection::paintStepper(Graphics& g, Rectangle<float> bounds, const 
   g.drawText("<", arrows, Justification::centredLeft);
   g.drawText(">", arrows, Justification::centredRight);
   g.drawFittedText(value, arrows.reduced(font_height, 0.0f).toNearestInt(), Justification::centred, 1, 0.6f);
+}
+
+void GeneratorSection::paintDivider(Graphics& g, Rectangle<float> bounds, const String& title, float font_height) {
+  Colour text = findColour(Skin::kBodyText, true);
+  g.setColour(text.withMultipliedAlpha(0.35f));
+  g.fillRect(bounds.getX(), bounds.getCentreY(), bounds.getWidth(), std::max(1.0f, size_ratio_));
+  g.setColour(findColour(Skin::kBody, true));
+  float label_width = bounds.getWidth() * 0.22f;
+  Rectangle<float> label(bounds.getCentreX() - label_width / 2.0f, bounds.getY(), label_width, bounds.getHeight());
+  g.fillRect(label);
+  g.setColour(text);
+  g.setFont(Fonts::instance()->proportional_regular().withPointHeight(font_height * 0.9f));
+  g.drawText(title, label, Justification::centred);
 }
 
 void GeneratorSection::paintBackground(Graphics& g) {
@@ -784,16 +903,7 @@ void GeneratorSection::paintBackground(Graphics& g) {
   paintButton(g, makeBankButton(), "MAKE BANK (" + String(total) + ")", total > 0, font_height);
 
   // Wavetables
-  Rectangle<float> divider = band(0.70f, 0.73f);
-  g.setColour(text.withMultipliedAlpha(0.35f));
-  g.fillRect(divider.getX(), divider.getCentreY(), divider.getWidth(), std::max(1.0f, size_ratio_));
-  g.setColour(findColour(Skin::kBody, true));
-  float label_width = divider.getWidth() * 0.22f;
-  Rectangle<float> label(divider.getCentreX() - label_width / 2.0f, divider.getY(), label_width, divider.getHeight());
-  g.fillRect(label);
-  g.setColour(text);
-  g.setFont(Fonts::instance()->proportional_regular().withPointHeight(font_height * 0.9f));
-  g.drawText("WAVETABLES", label, Justification::centred);
+  paintDivider(g, band(0.61f, 0.635f), "WAVETABLES", font_height);
 
   for (int option = 0; option < kNumTableOptions; ++option)
     paintStepper(g, tableOptionBox(option), kGenTableTitles[option], tableOptionValue(option), font_height);
@@ -801,6 +911,21 @@ void GeneratorSection::paintBackground(Graphics& g) {
   for (int i = 0; i < kNumWavetableTargets; ++i)
     paintButton(g, tableTargetButton(i), "NEW TO OSC " + String(i + 1), true, font_height);
   paintButton(g, tableExportButton(), "EXPORT FILE", false, font_height);
+
+  // Skins
+  paintDivider(g, band(0.80f, 0.825f), "SKINS", font_height);
+  paintStepper(g, skinHarmonyBox(), "HARMONY", corpuscular::gen::skinHarmonies()[skin_harmony_], font_height);
+  Rectangle<float> skin_name_box = skinNameBox();
+  g.setColour(text);
+  g.setFont(Fonts::instance()->proportional_regular().withPointHeight(font_height * 0.8f));
+  g.drawText("SKIN NAME", skin_name_box.removeFromTop(skin_name_box.getHeight() * 0.38f), Justification::centred);
+  g.setColour(cell_colour);
+  g.fillRoundedRectangle(skin_name_box, rounding);
+  g.setColour(findColour(Skin::kTextComponentText, true));
+  g.setFont(Fonts::instance()->proportional_regular().withPointHeight(font_height));
+  g.drawFittedText(skin_name_, skin_name_box.reduced(font_height, 0.0f).toNearestInt(), Justification::centred, 1, 0.7f);
+  paintButton(g, newSkinButton(), "NEW SKIN", true, font_height);
+  paintButton(g, defaultSkinButton(), "DEFAULT", false, font_height);
 
   g.setColour(text.withMultipliedAlpha(0.8f));
   g.setFont(Fonts::instance()->proportional_regular().withPointHeight(font_height * 0.85f));

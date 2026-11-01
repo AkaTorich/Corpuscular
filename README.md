@@ -8,7 +8,7 @@ Author of the changes: AkaTorich, 2026.
 ## Changes to the original code
 
 - **Name and identity.** Product name Corpuscular by AkaTorich, own plugin codes (`Ovkx` / `Crpc`),
-  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.3.
+  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.4.
 - **Sound engine** unchanged: the same preset renders bit for bit the same audio as before the changes.
 - **Tabs follow the path of the sound:** ARP → OSC → ROUTE → FILTER → AMP → FX → MOD → MATRIX → SETUP → GEN.
   - ARP — a built-in sequencer with the Melody Atoms generators (PSY ARP, ARP with 4th-bar endings, ARP STYLED,
@@ -56,6 +56,10 @@ Author of the changes: AkaTorich, 2026.
     - NEW TO OSC 1/2/3 — a wavetable (13 types, 8–256 frames, 256–4096 samples) loaded into that oscillator and saved to `User\Wavetables\Generated`;
     - EXPORT FILE — the wavetable for other synths: wavetable WAV (2048-sample frames), WAV 32/16, `.wt`, raw float;
     - VOCODER — OFF, ON (every new preset and bank preset gets the vocoder) or SOME (about one in four).
+    - SKINS — a new acid psytrance skin by one of 12 colour harmonies (Complementary, Analogous, Triadic, Split
+      Complementary, Square, Monochrome, Accented Analogous, Double Split, Rectangle, Clash, Achromatic Accent,
+      Warm & Cool): neon hues at full saturation on a near-black background. NEW SKIN puts it on the window and saves it
+      to `UserSkins` under the name shown (click the name for another); DEFAULT returns to the built-in skin.
     - How the presets are made: the ranges, choices and macros of each type come from 1766 commercial psytrance
       Vital presets (Outerverse and Sonicspore weighed first), measured with `tools/preset_stats`. Every preset is
       played once before it is kept: a silent, broken or exploding one is made again, and the level is set so all
@@ -104,7 +108,7 @@ Author of the changes: AkaTorich, 2026.
 | `src/generator/` | Generator engines: `preset_generator.h` (presets, scales, banks), `wavetable_generator.h` (wavetables and their file formats) |
 | `src/generator/lfo_generator.*` | LFO shape generator (16 families) |
 | `src/generator/preset_mutator.*` | SIMILAR: makes a relative of a preset |
-| `src/generator/skin_generator.*` | 16 genre skins (palettes, contrast check, side panel colour) |
+| `src/generator/skin_generator.*` | Genre skins of the library and the 12-harmony acid skins of the GEN tab (palettes, contrast check, side panel colour)
 | `src/melody_atoms/` | Melody Atoms generators (from PresetsGenerators-main\MelodyAtoms), `melody_atoms/scales.json` |
 | `src/common/arp_sequencer.*` | ARP sequencer: tonic from the held note, host sync, preset state |
 | `src/interface/editor_sections/arp_section.*`, `arp_piano_roll.*` | ARP tab and its piano roll |
