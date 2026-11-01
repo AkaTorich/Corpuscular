@@ -196,6 +196,20 @@ HeaderSection::HeaderSection() : SynthSection("header_section"), tab_offset_(0) 
   exit_temporary_button_->addListener(this);
   exit_temporary_button_->setShape(Paths::exitX());
 
+  undo_button_ = std::make_unique<OpenGlShapeButton>("Undo");
+  addAndMakeVisible(undo_button_.get());
+  addOpenGlComponent(undo_button_->getGlComponent());
+  undo_button_->addListener(this);
+  undo_button_->setShape(Paths::undo());
+  undo_button_->setTooltip("Undo");
+
+  redo_button_ = std::make_unique<OpenGlShapeButton>("Redo");
+  addAndMakeVisible(redo_button_.get());
+  addOpenGlComponent(redo_button_->getGlComponent());
+  redo_button_->addListener(this);
+  redo_button_->setShape(Paths::redo());
+  redo_button_->setTooltip("Redo");
+
   temporary_tab_ = std::make_unique<PlainTextComponent>("Temporary", "");
   addOpenGlComponent(temporary_tab_.get());
   temporary_tab_->setFontType(PlainTextComponent::kLight);
@@ -244,19 +258,23 @@ void HeaderSection::resized() {
   int logo_width = findValue(Skin::kModulationButtonWidth);
   logo_section_->setBounds(large_padding, 0, logo_width, height);
 
-  // Corpuscular: narrower preset selector right of center leaves room for eight tabs
-  int preset_selector_width = width / 4;
+  // Corpuscular: narrower preset selector right of center leaves room for the tabs;
+  // undo and redo follow it in the space it gave up
   int preset_selector_height = height * 0.6f;
+  int undo_size = preset_selector_height;
+  int preset_selector_width = width / 4 - 2 * undo_size;
   int preset_selector_buffer = (height - preset_selector_height) * 0.5f;
   int preset_selector_x = width / 2 + preset_selector_height;
   synth_preset_selector_->setBounds(preset_selector_x, preset_selector_buffer,
                                     preset_selector_width, preset_selector_height);
+  undo_button_->setBounds(synth_preset_selector_->getRight(), preset_selector_buffer, undo_size, undo_size);
+  redo_button_->setBounds(undo_button_->getRight(), preset_selector_buffer, undo_size, undo_size);
 
   int component_padding = 12 * size_ratio_;
-  int volume_width = (width - synth_preset_selector_->getRight() - 2 * component_padding) / 2;
+  int volume_width = (width - redo_button_->getRight() - 2 * component_padding) / 2;
   int oscilloscope_width = volume_width - widget_margin;
   int oscilloscope_x = width - oscilloscope_width - large_padding;
-  volume_section_->setBounds(synth_preset_selector_->getRight() + component_padding, 0, volume_width, height);
+  volume_section_->setBounds(redo_button_->getRight() + component_padding, 0, volume_width, height);
   oscilloscope_->setBounds(oscilloscope_x, widget_margin, oscilloscope_width, height - 2 * widget_margin);
   view_spectrogram_->setBounds(oscilloscope_->getBounds());
   spectrogram_->setBounds(oscilloscope_->getBounds());
@@ -292,6 +310,14 @@ void HeaderSection::buttonClicked(Button* clicked_button) {
     for (Listener* listener : listeners_)
       listener->clearTemporaryTab(tab_selector_->getValue());
     setTemporaryTab("");
+  }
+  else if (clicked_button == undo_button_.get()) {
+    for (Listener* listener : listeners_)
+      listener->undoRequested();
+  }
+  else if (clicked_button == redo_button_.get()) {
+    for (Listener* listener : listeners_)
+      listener->redoRequested();
   }
   else if (clicked_button == view_spectrogram_.get()) {
     bool view_spectrogram = view_spectrogram_->getToggleState();

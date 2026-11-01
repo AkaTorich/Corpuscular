@@ -11,8 +11,10 @@
 
 #include "corpuscular_library.h"
 #include "load_save.h"
+#include "preset_audition.h"
 
 #include <iostream>
+#include <map>
 
 namespace {
   String generateArgument(const StringArray& args, const String& name) {
@@ -21,6 +23,61 @@ namespace {
       return {};
     return args[index + 1].unquoted();
   }
+}
+
+void runAuditionTest(const StringArray& args) {
+  static constexpr int kTries = 8;
+
+  String folder_name = generateArgument(args, "--audition-test");
+  File folder = File::getCurrentWorkingDirectory().getChildFile(folder_name.isEmpty() ? "audition" : folder_name);
+  folder.createDirectory();
+  String count_setting = generateArgument(args, "--count");
+  int count = count_setting.isEmpty() ? 20 : std::max(1, count_setting.getIntValue());
+
+  PresetAudition audition;
+  Random random(Time::currentTimeMillis());
+  String report;
+  for (const std::string& type : corpuscular::gen::presetTypes()) {
+    std::map<String, int> rejected;
+    int failed = 0;
+    float loud_min = 0.0f, loud_max = -120.0f;
+    for (int n = 0; n < count; ++n) {
+      corpuscular::gen::PresetRequest request;
+      request.type = type;
+      request.author = "Corpuscular";
+      corpuscular::gen::GeneratedPreset preset;
+      PresetAudition::Result result;
+      for (int attempt = 0; attempt < kTries; ++attempt) {
+        request.seed = static_cast<uint32_t>(random.nextInt());
+        preset = corpuscular::gen::createPreset(request);
+        result = audition.check(preset.data, preset.type);
+        if (result.audible)
+          break;
+        rejected[result.reason]++;
+        // Kept for a look: what the re-made ones were
+        File bad = folder.getChildFile("rejected").getChildFile(String(type))
+                         .getNonexistentChildFile(String(preset.name) + " (" + result.reason + ")", ".vital", false);
+        bad.getParentDirectory().createDirectory();
+        bad.replaceWithText(preset.data.dump());
+      }
+      if (!result.audible)
+        failed++;
+      loud_min = std::min(loud_min, result.loud_db);
+      loud_max = std::max(loud_max, result.loud_db);
+      File file = folder.getChildFile(String(type)).getNonexistentChildFile(String(preset.name), ".vital", false);
+      file.getParentDirectory().createDirectory();
+      preset.data["preset_name"] = file.getFileNameWithoutExtension().toStdString();
+      file.replaceWithText(preset.data.dump());
+    }
+
+    String line = String(type).paddedRight(' ', 11) + " made " + String(count) + ", failed " + String(failed) +
+                  ", loud before level " + String(loud_min, 1) + ".." + String(loud_max, 1) + " dB, re-made:";
+    for (auto& reason : rejected)
+      line += " " + reason.first + " " + String(reason.second);
+    report += line + "\n";
+  }
+  folder.getChildFile("report.txt").replaceWithText(report);
+  std::cout << report << std::endl;
 }
 
 void runGenerateCommand(const StringArray& args) {

@@ -11,6 +11,7 @@
 
 #include "lfo_generator.h"
 #include "load_save.h"
+#include "preset_audition.h"
 #include "preset_generator.h"
 #include "qv_wavetable.h"
 #include "skin_generator.h"
@@ -224,6 +225,14 @@ namespace corpuscular {
     if (!table_types.empty())
       table_types.erase(table_types.begin());
 
+    // Every preset is heard before it is written: silent or broken ones are made again, the rest get one level
+    std::unique_ptr<PresetAudition> audition;
+    auto auditionFor = [&audition]() -> PresetAudition& {
+      if (audition == nullptr)
+        audition = std::make_unique<PresetAudition>();
+      return *audition;
+    };
+
     std::vector<LibraryPart> parts;
     parts.push_back({ LoadSave::kPresetFolderName, "Presets", gen::presetTypes(), counts.presets,
                       [&](const std::string& type, const File& folder) {
@@ -231,7 +240,7 @@ namespace corpuscular {
       request.type = type;
       request.seed = static_cast<uint32_t>(random.nextInt());
       request.author = kLibraryAuthor;
-      gen::GeneratedPreset preset = gen::createPreset(request);
+      gen::GeneratedPreset preset = auditionedPreset(request, auditionFor());
 
       File file = libraryUniqueFile(folder, preset.name, String(".") + vital::kPresetExtension);
       preset.data["preset_name"] = file.getFileNameWithoutExtension().toStdString();
@@ -246,8 +255,8 @@ namespace corpuscular {
       request.type = type;
       request.seed = static_cast<uint32_t>(random.nextInt());
       request.author = kLibraryAuthor;
-      gen::GeneratedPreset preset = gen::createPreset(request);
-      addVocoder(preset.data, random);
+      gen::GeneratedPreset preset = auditionedPreset(request, auditionFor(),
+                                                     [&random](json& data) { addVocoder(data, random); });
 
       File file = libraryUniqueFile(folder, preset.name, String(".") + vital::kPresetExtension);
       preset.data["preset_name"] = file.getFileNameWithoutExtension().toStdString();

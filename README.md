@@ -8,7 +8,7 @@ Author of the changes: AkaTorich, 2026.
 ## Changes to the original code
 
 - **Name and identity.** Product name Corpuscular by AkaTorich, own plugin codes (`Ovkx` / `Crpc`),
-  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.2.
+  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.3.
 - **Sound engine** unchanged: the same preset renders bit for bit the same audio as before the changes.
 - **Tabs follow the path of the sound:** ARP → OSC → ROUTE → FILTER → AMP → FX → MOD → MATRIX → SETUP → GEN.
   - ARP — a built-in sequencer with the Melody Atoms generators (PSY ARP, ARP with 4th-bar endings, ARP STYLED,
@@ -56,6 +56,11 @@ Author of the changes: AkaTorich, 2026.
     - NEW TO OSC 1/2/3 — a wavetable (13 types, 8–256 frames, 256–4096 samples) loaded into that oscillator and saved to `User\Wavetables\Generated`;
     - EXPORT FILE — the wavetable for other synths: wavetable WAV (2048-sample frames), WAV 32/16, `.wt`, raw float;
     - VOCODER — OFF, ON (every new preset and bank preset gets the vocoder) or SOME (about one in four).
+    - How the presets are made: the ranges, choices and macros of each type come from 1766 commercial psytrance
+      Vital presets (Outerverse and Sonicspore weighed first), measured with `tools/preset_stats`. Every preset is
+      played once before it is kept: a silent, broken or exploding one is made again, and the level is set so all
+      presets sound equally loud. `Corpuscular.exe --headless --audition-test <folder> --count N` makes N of each type
+      and writes what was kept, what was remade and why.
 - **Generated library on the first launch.** When `Documents\Corpuscular` has no `Presets`, `Wavetables`, `LFOs` or
   `Skins` folder, the synth builds them in the background (512 presets in 11 types, 256 wavetables in 13 types, 256 LFO
   shapes in 16 families, 16 genre skins) with a progress bar in place of the keyboard. `Presets\Vocoder` gets 64 more
@@ -67,6 +72,11 @@ Author of the changes: AkaTorich, 2026.
 - **Preset styles** Arp, Pluck and Vocal added to the browser filters and the save dialog (12 styles, 4 per row);
   generated presets use them.
 - **Modulation sources stay visible** on every tab, so drag and drop onto any knob still works.
+- **Preview on preset switch.** Picking a preset in the browser, with the arrows or on the GEN tab plays one note of it
+  for 5 seconds (low for basses and sequences, middle C for pads, keys, plucks, stabs). The next pick cuts it at once.
+- **Undo / redo** for every knob, switch and list choice: the two arrows right of the preset name. A finished action
+  in the window (a drag, a click, a wheel turn, a pick from a list) is one step, up to 200 steps. Automation from
+  the DAW and MIDI are not steps; loading a preset starts a new history. The ARP tab keeps its own note undo.
 - **Default skin "Corpuscular TI"**: charcoal panels, red LED accents, wooden side panels.
   A new skin colour "Side Panel" draws the side panels; skins without it have no side panels.
   Menu: Load Skin..., Open Skin Designer, Back to Corpuscular TI Skin.
@@ -77,7 +87,8 @@ Author of the changes: AkaTorich, 2026.
 - **Data folder** `Documents\Corpuscular`. The Vital data folder (if present) is scanned too,
   so existing Vital presets, wavetables and skins show up in the browsers.
 - **File formats unchanged:** `.vital`, `.vitalbank`, `.vitalskin`, `.vitaltable`, `.vitallfo`;
-  presets are written as Vital 1.0.7 and open in Vital.
+  presets are written as Vital 1.0.7 and open in Vital. Presets from newer Vital versions (1.5.x) open too:
+  the settings Corpuscular knows load, the rest is skipped.
 
 ## Where things are
 
@@ -104,6 +115,12 @@ Author of the changes: AkaTorich, 2026.
 | `branding/psy_*.vitalskin`, `branding/neon_tubes.vitalskin` | Signature skins built into the binary |
 | `src/common/corpuscular_library.*` | First-launch library build (background thread, progress) |
 | `src/interface/editor_sections/library_progress_section.*` | The progress bar shown during that build |
+| `src/interface/editor_sections/undo_controller.*` | Undo / redo of control values (buttons in `header_section.cpp`) |
+| `src/interface/editor_sections/preset_preview.*` | Preview on preset switch |
+| `src/generator/recipes/` | One recipe per preset type; `gen_psy_style.*` holds the choices and macros taken from the commercial packs |
+| `src/generator/gen_sanity.cpp` | Type rules (attack, sustain, release, room) and the filter-above-the-note check |
+| `src/common/preset_audition.*` | Plays a generated preset, rejects silent ones, sets the level |
+| `tools/preset_stats/PresetStats.cs` | Statistics of a preset folder by type (C#, `csc /optimize`) |
 | `src/standalone/generate_command.*` | `--generate` command line |
 | `src/interface/look_and_feel/skin.*` | Skins, the Side Panel colour |
 | `default.vitalskin` | Corpuscular TI skin built into the binary |

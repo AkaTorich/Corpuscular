@@ -324,6 +324,7 @@ void SynthBase::initEngine() {
   checkOversampling();
 
   clearActiveFile();
+  stateLoaded();
 }
 
 void SynthBase::loadTuningFile(const File& file) {

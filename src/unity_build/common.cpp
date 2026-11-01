@@ -46,3 +46,4 @@
 #include "slew_limit_modifier.cpp"
 #include "corpuscular_library.cpp"
 #include "arp_sequencer.cpp"
+#include "preset_audition.cpp"

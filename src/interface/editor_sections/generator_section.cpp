@@ -11,8 +11,10 @@
 
 #include "corpuscular_library.h"
 #include "fonts.h"
+#include "full_interface.h"
 #include "load_save.h"
 #include "preset_generator.h"
+#include "preset_audition.h"
 #include "preset_mutator.h"
 #include "skin.h"
 #include "synth_base.h"
@@ -50,15 +52,19 @@ namespace {
   // Makes the bank presets on a worker thread while a progress window is shown
   class GenBankBuilder : public ThreadWithProgressWindow {
     public:
-      GenBankBuilder(std::vector<corpuscular::gen::PresetRequest> requests) :
-          ThreadWithProgressWindow("Corpuscular: making the bank", true, true), requests_(std::move(requests)) { }
+      GenBankBuilder(std::vector<corpuscular::gen::PresetRequest> requests,
+                     std::function<void(nlohmann::json&)> extra) :
+          ThreadWithProgressWindow("Corpuscular: making the bank", true, true), requests_(std::move(requests)),
+          extra_(std::move(extra)) { }
 
       void run() override {
+        // Each preset is heard before it goes into the bank (its own synth on this thread)
+        PresetAudition audition;
         for (size_t i = 0; i < requests_.size(); ++i) {
           if (threadShouldExit())
             return;
           setProgress(i / (double)requests_.size());
-          presets_.push_back(corpuscular::gen::createPreset(requests_[i]));
+          presets_.push_back(corpuscular::auditionedPreset(requests_[i], audition, extra_));
         }
         setProgress(1.0);
       }
@@ -67,6 +73,7 @@ namespace {
 
     private:
       std::vector<corpuscular::gen::PresetRequest> requests_;
+      std::function<void(nlohmann::json&)> extra_;
       std::vector<corpuscular::gen::GeneratedPreset> presets_;
   };
 }
@@ -81,6 +88,8 @@ GeneratorSection::GeneratorSection() : SynthSection("GEN"), selected_type_(0), r
   loadHistory();
   setInterceptsMouseClicks(true, false);
 }
+
+GeneratorSection::~GeneratorSection() = default;
 
 void GeneratorSection::resized() {
   SynthSection::resized();
@@ -274,6 +283,8 @@ bool GeneratorSection::loadPreset(const File& file) {
     return false;
   }
   parent->externalPresetLoaded(file);
+  if (parent->getGui())
+    parent->getGui()->previewPreset();
   return true;
 }
 
@@ -316,23 +327,42 @@ void GeneratorSection::generateOne(bool with_wavetables) {
   request.phrase_kind = corpuscular::gen::phraseKinds()[melody_];
   request.step_tempo = kGenStepValues[step_];
 
-  corpuscular::gen::GeneratedPreset preset = corpuscular::gen::createPreset(request);
+  // Heard before it is loaded: a silent or broken one is made again, a good one gets the common level
+  if (audition_ == nullptr)
+    audition_ = std::make_unique<PresetAudition>();
   Random random(request.seed);
-  maybeAddVocoder(preset.data, random);
+  corpuscular::gen::GeneratedPreset preset = corpuscular::auditionedPreset(request, *audition_,
+      [this, &random](nlohmann::json& data) { maybeAddVocoder(data, random); });
 
-  // Combo: every oscillator the preset uses gets a freshly made wavetable
+  // Combo: every oscillator the preset uses gets a freshly made wavetable (new tables until the preset still sounds)
   String table_names;
   if (with_wavetables) {
-    json& settings = preset.data["settings"];
-    for (int i = 0; i < GeneratorSection::kNumWavetableTargets; ++i) {
-      std::string on_key = "osc_" + std::to_string(i + 1) + "_on";
-      if (!settings.count(on_key) || settings[on_key].get<double>() == 0.0)
-        continue;
+    static constexpr int kTableTries = 4;
+    std::vector<std::pair<int, corpuscular::gen::GeneratedWavetable>> tables;
+    for (int attempt = 0; attempt < kTableTries; ++attempt) {
+      nlohmann::json trial = preset.data;
+      json& settings = trial["settings"];
+      tables.clear();
+      for (int i = 0; i < GeneratorSection::kNumWavetableTargets; ++i) {
+        std::string on_key = "osc_" + std::to_string(i + 1) + "_on";
+        if (!settings.count(on_key) || settings[on_key].get<double>() == 0.0)
+          continue;
+        tables.emplace_back(i, makeWavetable());
+        settings["wavetables"][i] = corpuscular::gen::wavetableToJson(tables.back().second, kGenAuthor);
+      }
+      if (audition_->check(trial, preset.type).audible || attempt == kTableTries - 1) {
+        preset.data = trial;
+        break;
+      }
+    }
 
-      corpuscular::gen::GeneratedWavetable table = makeWavetable();
-      saveWavetableToLibrary(table);
-      settings["wavetables"][i] = corpuscular::gen::wavetableToJson(table, kGenAuthor);
-      table_names += (table_names.isEmpty() ? "" : ", ") + String("OSC ") + String(i + 1) + " " + String(table.name);
+    // Only the tables that made it go into the library
+    json& settings = preset.data["settings"];
+    for (auto& entry : tables) {
+      saveWavetableToLibrary(entry.second);
+      settings["wavetables"][entry.first] = corpuscular::gen::wavetableToJson(entry.second, kGenAuthor);
+      table_names += (table_names.isEmpty() ? "" : ", ") + String("OSC ") + String(entry.first + 1) + " " +
+                     String(entry.second.name);
     }
   }
 
@@ -472,7 +502,11 @@ void GeneratorSection::makeBank() {
     requests.push_back(request);
   }
 
-  GenBankBuilder builder(requests);
+  // The vocoder choice happens on the builder's thread with its own random, before each preset is heard
+  Random vocoder_random(genSeed());
+  GenBankBuilder builder(requests, [this, vocoder_random](nlohmann::json& data) mutable {
+    maybeAddVocoder(data, vocoder_random);
+  });
   if (!builder.runThread() || builder.presets().size() != requests.size()) {
     setStatus("Bank cancelled");
     return;
@@ -490,7 +524,6 @@ void GeneratorSection::makeBank() {
   File first_preset;
   std::set<String> used;
   for (corpuscular::gen::GeneratedPreset& preset : builder.presets()) {
-    maybeAddVocoder(preset.data, random);
     String folder_name = genSafeName(preset.type, "Presets");
     String base = genSafeName(preset.name, "Preset");
     String name = base;

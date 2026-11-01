@@ -6,6 +6,7 @@
 #include "gen_recipe.h"
 
 #include "gen_kit.h"
+#include "gen_psy_style.h"
 #include "../format/gen_patch.h"
 #include "../music/gen_arp_algorithms.h"
 #include "../music/gen_sequence_encoder.h"
@@ -13,54 +14,75 @@
 namespace corpuscular {
 namespace gen {
 
+  // Packs: a single voice in a half, a few in a third; Outerverse stacks the full 16 in a sixth
+  static int sequenceVoices(RecipeContext& c) {
+    double roll = c.r.nextDouble();
+    if (roll < 0.5)
+      return 1;
+    if (roll < 0.83)
+      return c.rangeInt(2, 5);
+    return 16;
+  }
+
   void SequenceRecipe::build(RecipeContext& c) const {
     Patch& p = c.p;
+    // Packs: a psy sequence sits low (osc 1 an octave or two down), mostly a single voice
     Kit::osc(c, 1, Kit::table(c, c.pick({ "Basic Shapes", "Digital", "FM", "Wavefold", "PWM" }), c.rangeInt(3, 6)),
-             c.range(0.66, 0.76), -12, c.rangeInt(1, 3), c.range(1.5, 3));
+             c.range(0.66, 0.76), c.pick({ -12, -24, -24 }), sequenceVoices(c), c.range(1.5, 3));
     p["osc_1_wave_frame"] = c.range(80, 220);
+    PsyStyle::oscWarp(c, 1, 0.55);
+    PsyStyle::spectralMorph(c, 1, 0.4);
     std::vector<int> oscs = { 1 };
-    if (c.chance(0.67)) {
+    if (c.chance(0.6)) {
       Kit::osc(c, 2, Kit::table(c, c.pick({ "Basic Shapes", "Additive", "Hard Sync" }), c.rangeInt(2, 5)),
-               c.range(0.4, 0.58), c.pick({ 0, 12 }), c.rangeInt(1, 2), c.range(1, 2.5));
+               c.range(0.4, 0.58), c.pick({ 0, 12, -12 }), c.rangeInt(1, 2), c.range(1, 2.5));
       p["osc_2_wave_frame"] = c.range(0, 220);
       oscs = { 1, 2 };
     }
+    PsyStyle::oscFm(c, 1, 0.2);
 
-    Kit::filter(c, 1, c.pick({ FilterModel::kAnalog, FilterModel::kDirty, FilterModel::kLadder }),
-                c.pick({ FilterStyle::kDb12, FilterStyle::kDb24 }), c.range(52, 80), c.range(0.3, 0.7), c.range(0, 5),
-                0, c.range(0.2, 0.5));
-    Kit::env(c, 1, 0.0005, c.range(0.6, 1), 1, c.range(0.06, 0.15));
+    // Packs: cutoff around note 33-65, resonance 0.35-0.63, low-pass or band-pass, sometimes high-pass
+    Kit::filter(c, 1, PsyStyle::filterModel(c), c.pick({ FilterStyle::kDb12, FilterStyle::kDb24 }), c.range(36, 66),
+                c.range(0.35, 0.63), c.range(0, 5), PsyStyle::filterBlend(c, 0.4, 0.12), c.range(0.2, 0.5));
+    Kit::env(c, 1, 0.0005, c.range(0.6, 1), 1, c.range(0.03, 0.09));
 
     Phrase phrase = c.arp.make(c.phrase_kind, c.scale);
     std::string tempo = c.sequenceTempo();
-    SequenceEncoder::applyPitch(p, phrase, c.scale, oscs, tempo);
-    if (c.chance(0.6)) {
+    // Producers' sequences: chopped by a gate in 86%, a pitch pattern only in half (the rest is one note in rhythm)
+    bool gated = c.chance(0.9);
+    // Without a gate the pattern has to come from the pitch
+    if (!gated || c.chance(0.5))
+      SequenceEncoder::applyPitch(p, phrase, c.scale, oscs, tempo);
+    if (gated) {
       int gate = SequenceEncoder::applyGate(p, phrase, oscs, tempo, c.range(0.5, 0.8), c.range(0.3, 0.7));
       p.mods.add("lfo_" + std::to_string(gate), "filter_1_cutoff", c.range(0.08, 0.16));
     }
     c.tag = phrase.kind;
 
-    Kit::random(c, 1, "filter_1_cutoff", c.range(0.06, 0.14), "1/16", 1);
-    Kit::motion(c, "osc_1_wave_frame", c.range(0.15, 0.35), c.pick({ "2/1", "4/1" }), true);
+    // Packs: the stepped random filter flicker is in 42% of sequences, at 0.25-0.55
+    PsyStyle::randomCutoff(c, 1, 1, 0.75);
+    if (p.get("osc_1_distortion_type") > 0.0 && c.chance(0.35))
+      Kit::random(c, 2, "osc_1_distortion_amount", c.range(0.25, 0.55), "1/16", 1);
+    Kit::motion(c, "osc_1_wave_frame", c.range(0.3, 0.7), c.pick({ "2/1", "4/1" }), true);
 
-    p["polyphony"] = 8;
-    Kit::delay(c, c.range(0.12, 0.25), c.range(0.3, 0.5), c.pick({ "1/8", "1/16" }), c.chance(0.5), DelayStyle::kPingPong);
+    // Packs: mono in 27% overall, 67% at Sonicspore (legato in a third of those); the room mostly dry
+    p["polyphony"] = c.chance(0.4) ? 1 : 8;
+    if (p.get("polyphony") == 1.0)
+      p["legato"] = c.chance(0.35) ? 1 : 0;
+    Kit::delay(c, c.range(0.08, 0.2), c.range(0.25, 0.5), c.pick({ "1/8", "1/16" }), c.chance(0.5), DelayStyle::kPingPong);
+    if (c.chance(0.4))
+      Kit::reverb(c, c.range(0.0, 0.12), c.range(0.3, 0.6), c.range(1.0, 2.5));
     if (c.chance(0.8))
-      Kit::reverb(c, c.range(0.15, 0.3), c.range(0.4, 0.7), c.range(1.5, 3.5));
-    Kit::distortion(c, c.pick({ DistortionType::kSoftClip, DistortionType::kHardClip }), c.range(1, 7), c.range(0.5, 1));
-    if (c.chance(0.55))
-      Kit::phaser(c, c.range(0.3, 0.6), c.range(0.3, 0.6), c.pick({ "1/1", "2/1" }));
-    if (c.chance(0.6))
-      Kit::flanger(c, c.range(0.15, 0.35), c.range(0.2, 0.6), c.pick({ "2/1", "4/1" }));
+      Kit::distortion(c, PsyStyle::distortionType(c), c.range(2, 10), c.range(0.6, 1));
+    if (c.chance(0.3))
+      Kit::phaser(c, c.range(0.3, 0.6), c.range(0.4, 0.7), c.pick({ "1/1", "2/1" }));
+    if (c.chance(0.5))
+      Kit::flanger(c, c.range(0.15, 0.35), c.range(0.3, 0.7), c.pick({ "2/1", "4/1" }));
     Kit::compressor(c, c.range(0.5, 0.9));
     Kit::eq(c, c.range(30, 44), c.range(-2, 0));
 
     p.comments = "Hold a note \xE2\x80\x94 the sequence plays. Change the scale in the osc pitch quantization.";
-    Kit::macro(c, 1, "FILTER", "filter_1_cutoff", 0.3);
-    Kit::macro(c, 2, "DISTO", "distortion_drive", 0.45);
-    p.mods.add("macro_control_2", "volume", -0.15);
-    Kit::macro(c, 3, "DELAY", "delay_dry_wet", 0.35);
-    Kit::macro(c, 4, "TEXTURE", "osc_1_wave_frame", 0.35);
+    PsyStyle::producerMacros(c, "Sequence");
     Kit::volume(c, c.range(-8, -6));
   }
 

@@ -53,6 +53,8 @@ class SaveSection;
 class SynthesisInterface;
 struct SynthGuiData;
 class SynthSlider;
+class UndoController;
+class PresetPreview;
 class WavetableEditSection;
 class VoiceSection;
 
@@ -128,6 +130,11 @@ class FullInterface : public SynthSection, public AuthenticationSection::Listene
     void setPresetBrowserVisibility(bool visible, int current_tab) override;
     void setBankExporterVisibility(bool visible, int current_tab) override;
     void bankImported() override;
+    void undoRequested() override;
+    void redoRequested() override;
+
+    // Plays the just loaded preset for a few seconds (preset browser, arrows, generator)
+    void previewPreset();
 
     void effectsMoved() override;
     void modulationsScrolled() override;
@@ -204,6 +211,8 @@ class FullInterface : public SynthSection, public AuthenticationSection::Listene
     std::unique_ptr<Component> standalone_settings_section_;
 
     std::unique_ptr<HeaderSection> header_;
+    std::unique_ptr<UndoController> undo_controller_;
+    std::unique_ptr<PresetPreview> preset_preview_;
     std::unique_ptr<SynthesisInterface> synthesis_interface_;
     std::unique_ptr<RoutingSection> routing_section_;
     std::unique_ptr<GeneratorSection> generator_section_;

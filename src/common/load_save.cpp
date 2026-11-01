@@ -1081,12 +1081,11 @@ json LoadSave::updateFromOldVersion(json state) {
 }
 
 bool LoadSave::jsonToState(SynthBase* synth, std::map<std::string, String>& save_info, json data) {
-  std::string version = data["synth_version"];
-  
-  int compare_feature_versions = compareFeatureVersionStrings(version, corpuscular::kFormatVersion);
-  if (compare_feature_versions > 0)
-    return false;
-  
+  std::string version = data.count("synth_version") && data["synth_version"].is_string() ?
+                        data["synth_version"].get<std::string>() : std::string(corpuscular::kFormatVersion);
+
+  // Corpuscular: Vital 1.0.x refuses presets of a newer major.minor (Vital 1.5 writes "1.5.x").
+  // Corpuscular opens them: the settings it knows load, the ones it doesn't know are skipped.
   int compare_versions = compareVersionStrings(version, corpuscular::kFormatVersion);
   if (compare_versions < 0 || data["settings"].count("sub_octave"))
     data = updateFromOldVersion(data);
@@ -1136,6 +1135,7 @@ bool LoadSave::jsonToState(SynthBase* synth, std::map<std::string, String>& save
       vocoder->setTable(std::shared_ptr<const wv::Wavetable>(table.release()));
   }
 
+  synth->stateLoaded();
   return true;
 }
 

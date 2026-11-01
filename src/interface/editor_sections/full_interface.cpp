@@ -47,6 +47,8 @@
 #include "synthesis_interface.h"
 #include "synth_gui_interface.h"
 #include "text_look_and_feel.h"
+#include "undo_controller.h"
+#include "preset_preview.h"
 #include "update_check_section.h"
 #include "voice_section.h"
 
@@ -109,6 +111,11 @@ FullInterface::FullInterface(SynthGuiData* synth_data) : SynthSection("full_inte
   header_ = std::make_unique<HeaderSection>();
   addSubSection(header_.get());
   header_->addListener(this);
+
+  if (synth_data->synth) {
+    undo_controller_ = std::make_unique<UndoController>(this, synth_data->synth);
+    preset_preview_ = std::make_unique<PresetPreview>(synth_data->synth);
+  }
 
   modulation_interface_ = std::make_unique<ModulationInterface>(synth_data);
   addSubSection(modulation_interface_.get());
@@ -725,6 +732,21 @@ void FullInterface::openGLContextClosing() {
   destroyOpenGlComponents(open_gl_);
   open_gl_.shaders = nullptr;
   shaders_ = nullptr;
+}
+
+void FullInterface::undoRequested() {
+  if (undo_controller_)
+    undo_controller_->undo();
+}
+
+void FullInterface::redoRequested() {
+  if (undo_controller_)
+    undo_controller_->redo();
+}
+
+void FullInterface::previewPreset() {
+  if (preset_preview_)
+    preset_preview_->play();
 }
 
 void FullInterface::showAboutSection() {

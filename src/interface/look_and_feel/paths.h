@@ -124,6 +124,30 @@ class Paths {
       return next_shape;
     }
 
+    // Corpuscular: a hooked arrow for undo; redo is its mirror
+    static Path undo(bool mirrored = false) {
+      static const PathStrokeType arrow_stroke(0.08f, PathStrokeType::JointStyle::curved,
+                                               PathStrokeType::EndCapStyle::rounded);
+
+      Path line, shape;
+      line.startNewSubPath(0.3f, 0.4f);
+      line.lineTo(0.6f, 0.4f);
+      line.cubicTo(0.78f, 0.4f, 0.78f, 0.7f, 0.6f, 0.7f);
+      line.lineTo(0.45f, 0.7f);
+      line.startNewSubPath(0.4f, 0.28f);
+      line.lineTo(0.28f, 0.4f);
+      line.lineTo(0.4f, 0.52f);
+
+      arrow_stroke.createStrokedPath(shape, line);
+      if (mirrored)
+        shape.applyTransform(AffineTransform::scale(-1.0f, 1.0f, 0.5f, 0.5f));
+      shape.addLineSegment(Line<float>(0.0f, 0.0f, 0.0f, 0.0f), 0.2f);
+      shape.addLineSegment(Line<float>(1.0f, 1.0f, 1.0f, 1.0f), 0.2f);
+      return shape;
+    }
+
+    static Path redo() { return undo(true); }
+
     static Path clock() {
       static const float kClockAngle = 1.0f;
       static const float kClockWidth = 0.4f;

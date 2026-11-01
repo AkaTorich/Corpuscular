@@ -20,6 +20,7 @@
 #include "fonts.h"
 #include "load_save.h"
 #include "paths.h"
+#include "full_interface.h"
 #include "synth_gui_interface.h"
 #include "open_gl_component.h"
 #include "open_gl_image.h"
@@ -979,6 +980,8 @@ bool PresetBrowser::loadFromFile(File& preset) {
       comments_->setFont(Fonts::instance()->proportional_light().withPointHeight(comments_font_size));
       comments_->redoImage();
     }
+    if (parent->getGui())
+      parent->getGui()->previewPreset();
     return true;
   }
   return false;

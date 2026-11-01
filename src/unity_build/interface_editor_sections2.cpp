@@ -45,3 +45,5 @@
 #include "arp_piano_roll.cpp"
 #include "arp_section.cpp"
 #include "vocoder_section.cpp"
+#include "undo_controller.cpp"
+#include "preset_preview.cpp"

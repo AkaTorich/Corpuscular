@@ -14,3 +14,7 @@
 // --generate: builds the missing parts of the generated library in the data folder right away
 // (the same library the synth builds on its first launch). Options: --presets N, --wavetables N, --lfos N, --seed N.
 void runGenerateCommand(const StringArray& args);
+
+// --audition-test <folder> [--count N]: makes N presets of every type, hears each like the generator does
+// and writes them with report.txt (what was re-made and why) into the folder (relative to the working folder)
+void runAuditionTest(const StringArray& args);

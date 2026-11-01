@@ -136,8 +136,11 @@ void SynthPresetSelector::newPresetSelected(File preset) {
   SynthGuiInterface* parent = findParentComponentOfClass<SynthGuiInterface>();
   std::string error;
   bool result = parent->getSynth()->loadFromFile(preset, error);
-  if (result)
+  if (result) {
     resetText();
+    if (parent->getGui())
+      parent->getGui()->previewPreset();
+  }
   else {
     error = "There was an error open the preset. " + error;
     AlertWindow::showNativeDialogBox("Error opening preset", error, false);

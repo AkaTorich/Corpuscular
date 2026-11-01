@@ -32,6 +32,7 @@
 #include "../generator/music/gen_lorem_generator.cpp"
 
 #include "../generator/recipes/gen_kit.cpp"
+#include "../generator/recipes/gen_psy_style.cpp"
 #include "../generator/recipes/gen_recipe_catalog.cpp"
 #include "../generator/recipes/gen_lead_recipe.cpp"
 #include "../generator/recipes/gen_bass_recipe.cpp"

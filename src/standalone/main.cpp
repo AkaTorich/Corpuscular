@@ -462,6 +462,10 @@ class SynthApplication : public JUCEApplication {
         runGenerateCommand(getCommandLineParameterArray());
         quit();
       }
+      else if (command.contains(" --audition-test ")) {
+        runAuditionTest(getCommandLineParameterArray());
+        quit();
+      }
       else if (command.contains(" --render ")) {
         bool images = command.contains(" --images ");
         HeadlessSynth synth;

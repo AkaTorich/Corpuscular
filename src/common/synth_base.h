@@ -123,6 +123,9 @@ class SynthBase : public MidiManager::Listener {
     String getMacroName(int index);
 
     vital::control_map& getControls() { return controls_; }
+    // Corpuscular: counts preset loads (files, DAW projects, init), so the undo history knows to start over
+    int getStateLoads() const { return state_loads_.load(); }
+    void stateLoaded() { state_loads_++; }
     vital::SoundEngine* getEngine() { return engine_.get(); }
     MidiKeyboardState* getKeyboardState() { return keyboard_state_.get(); }
     const vital::poly_float* getOscilloscopeMemory() { return oscilloscope_memory_; }
@@ -200,6 +203,7 @@ class SynthBase : public MidiManager::Listener {
     ArpSequencer arp_sequencer_;
     std::unique_ptr<vital::poly_float[]> sidechain_buffer_;
     std::vector<float> render_voice_;
+    std::atomic<int> state_loads_ { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthBase)
 };

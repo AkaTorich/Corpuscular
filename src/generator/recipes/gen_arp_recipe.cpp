@@ -6,6 +6,7 @@
 #include "gen_recipe.h"
 
 #include "gen_kit.h"
+#include "gen_psy_style.h"
 #include "../format/gen_patch.h"
 #include "../music/gen_arp_algorithms.h"
 #include "../music/gen_sequence_encoder.h"
@@ -18,9 +19,11 @@ namespace gen {
     bool vocal = c.chance(0.25);
     std::string kind1 = vocal ? c.pick({ "Vocal", "Formant" })
                               : c.pick({ "Basic Shapes", "FM", "Digital", "Additive", "PWM" });
-    Kit::osc(c, 1, Kit::table(c, kind1, c.rangeInt(3, 6)), c.range(0.68, 0.78), c.pick({ -12, 0 }),
-             c.rangeInt(1, 4), c.range(1.5, 3.5));
+    // Packs: an arp sits an octave down (median register -12), mostly a single voice
+    Kit::osc(c, 1, Kit::table(c, kind1, c.rangeInt(3, 6)), c.range(0.68, 0.78), c.pick({ -12, -12, -12, 0 }),
+             c.chance(0.75) ? 1 : c.rangeInt(2, 4), c.range(1.5, 3.5));
     p["osc_1_wave_frame"] = c.range(40, 220);
+    PsyStyle::oscWarp(c, 1, 0.45);
     std::vector<int> oscs = { 1 };
     if (c.chance(0.6)) {
       Kit::osc(c, 2, Kit::table(c, c.pick({ "Basic Shapes", "Hard Sync", "FM" }), c.rangeInt(2, 4)),
@@ -28,6 +31,8 @@ namespace gen {
       p["osc_2_wave_frame"] = c.range(0, 200);
       oscs = { 1, 2 };
     }
+    if (!vocal)
+      PsyStyle::oscFm(c, 1, 0.15);
 
     if (vocal) {
       Kit::filter(c, 1, FilterModel::kFormant, 0, c.range(60, 90), c.range(0.4, 0.8));
@@ -38,38 +43,43 @@ namespace gen {
       c.tag = "Vocal";
     }
     else {
-      Kit::filter(c, 1, c.pick({ FilterModel::kAnalog, FilterModel::kDirty, FilterModel::kDigital }), FilterStyle::kDb12,
-                  c.range(58, 86), c.range(0.35, 0.7), c.range(0, 4), 0, c.range(0.2, 0.5));
+      // Packs: cutoff around note 42-60, resonance 0.33-0.68, low-pass or band-pass
+      Kit::filter(c, 1, PsyStyle::filterModel(c), FilterStyle::kDb12, c.range(42, 66), c.range(0.33, 0.68),
+                  c.range(0, 4), PsyStyle::filterBlend(c, 0.4, 0.1), c.range(0.2, 0.5));
     }
-    Kit::env(c, 1, 0.0005, 1, 1, c.range(0.08, 0.2));
+    Kit::env(c, 1, 0.0005, 1, 1, c.range(0.02, 0.09));
 
     Phrase phrase = c.arp.make(c.phrase_kind, c.scale);
     std::string tempo = c.sequenceTempo();
     SequenceEncoder::applyPitch(p, phrase, c.scale, oscs, tempo);
-    int gate = SequenceEncoder::applyGate(p, phrase, oscs, tempo, c.range(0.4, 0.7), c.range(0.5, 0.85));
-    p.mods.add("lfo_" + std::to_string(gate), "filter_1_cutoff", c.range(0.08, 0.18));
+    // Producers' arps are a held tone whose pitch steps (gated in only 20%)
+    if (c.chance(0.25)) {
+      int gate = SequenceEncoder::applyGate(p, phrase, oscs, tempo, c.range(0.4, 0.7), c.range(0.5, 0.85));
+      p.mods.add("lfo_" + std::to_string(gate), "filter_1_cutoff", c.range(0.08, 0.18));
+    }
     if (c.tag.empty())
       c.tag = phrase.kind;
 
-    p["polyphony"] = 8;
-    Kit::delay(c, c.range(0.2, 0.35), c.range(0.35, 0.55), "1/8", c.chance(0.7), DelayStyle::kPingPong);
-    Kit::reverb(c, c.range(0.18, 0.32), c.range(0.45, 0.75), c.range(1.5, 3.5));
-    if (c.chance(0.6))
-      Kit::distortion(c, DistortionType::kSoftClip, c.range(0, 6), c.range(0.4, 0.9));
-    if (c.chance(0.5))
+    // Packs: the stepped random filter is in 64% of arps (0.29-0.59)
+    PsyStyle::randomCutoff(c, 1, 1, 0.65);
+
+    // Packs: 68% of arps are mono
+    p["polyphony"] = c.chance(0.65) ? 1 : 8;
+    Kit::delay(c, c.range(0.18, 0.32), c.range(0.3, 0.55), "1/8", c.chance(0.7), DelayStyle::kPingPong);
+    // Packs: the arp room is mostly closed, a macro opens it
+    if (c.chance(0.4))
+      Kit::reverb(c, c.range(0.0, 0.12), c.range(0.35, 0.65), c.range(1.0, 2.5));
+    if (c.chance(0.85))
+      Kit::distortion(c, PsyStyle::distortionType(c), c.range(1, 7), c.range(0.4, 0.9));
+    if (c.chance(0.55))
       Kit::phaser(c, c.range(0.3, 0.6), c.range(0.3, 0.6), c.pick({ "1/1", "2/1" }));
-    if (vocal || c.chance(0.3))
+    if (vocal || c.chance(0.5))
       Kit::chorus(c, c.range(0.2, 0.45));
     Kit::compressor(c, c.range(0.5, 0.9));
     Kit::eq(c, c.range(34, 46), c.range(-2, 0));
 
     p.comments = "Hold a note \xE2\x80\x94 the arp plays. Change the scale in the osc pitch quantization.";
-    Kit::macro(c, 1, "FILTER", "filter_1_cutoff", 0.3);
-    Kit::macro(c, 2, "DISTO", "distortion_drive", 0.4);
-    p.mods.add("macro_control_2", "volume", -0.12);
-    Kit::macro(c, 3, "DELAY", "delay_dry_wet", 0.35);
-    p.mods.add("macro_control_3", "reverb_dry_wet", 0.3);
-    Kit::macro(c, 4, "TEXTURE", "osc_1_wave_frame", 0.4);
+    PsyStyle::producerMacros(c, "Arp");
     Kit::volume(c, c.range(-8, -6));
   }
 

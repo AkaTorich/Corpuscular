@@ -13,6 +13,8 @@
 #include "synth_section.h"
 #include "wavetable_generator.h"
 
+class PresetAudition;
+
 // GEN tab: the built-in preset and wavetable generators. Everything made here goes straight into
 // Corpuscular: a preset is loaded, a bank lands in the library and opens in the preset browser,
 // a wavetable is loaded into an oscillator and joins the wavetable library.
@@ -21,6 +23,7 @@ class GeneratorSection : public SynthSection {
     static constexpr int kNumWavetableTargets = 3;
 
     GeneratorSection();
+    ~GeneratorSection();
 
     // Loads a wavetable file into oscillator `index` and shows it
     void setWavetableLoader(std::function<void(int, const File&)> loader) { wavetable_loader_ = std::move(loader); }
@@ -105,6 +108,9 @@ class GeneratorSection : public SynthSection {
 
     std::vector<File> history_;
     int history_index_;
+
+    // Hears every preset made on the tab before it is loaded (created on first use)
+    std::unique_ptr<PresetAudition> audition_;
 
     String status_;
 

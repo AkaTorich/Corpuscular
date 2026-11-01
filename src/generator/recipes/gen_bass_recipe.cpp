@@ -6,6 +6,7 @@
 #include "gen_recipe.h"
 
 #include "gen_kit.h"
+#include "gen_psy_style.h"
 #include "../format/gen_patch.h"
 #include "../music/gen_sequence_encoder.h"
 #include "../wavetables/gen_wavetable_factory.h"
@@ -37,17 +38,22 @@ namespace gen {
       oscs = { 1, 2 };
     }
 
-    Kit::filter(c, 1, c.pick({ FilterModel::kAnalog, FilterModel::kDirty, FilterModel::kLadder }),
-                c.pick({ FilterStyle::kDb24, FilterStyle::kDb12 }), c.range(32, 52), c.range(0.05, 0.35), c.range(1, 8));
+    // Packs: low-pass around note 40-57 with little resonance, a strong curved filter envelope (0.3-0.6)
+    // that decays in 0.1-0.45 s to a low sustain
+    Kit::filter(c, 1, c.pick({ FilterModel::kAnalog, FilterModel::kAnalog, FilterModel::kDirty, FilterModel::kLadder }),
+                c.pick({ FilterStyle::kDb24, FilterStyle::kDb12 }), c.range(38, 56), c.range(0.0, 0.25), c.range(0, 3));
     p["osc_2_destination"] = OscDest::kFilter1;
-    Kit::env(c, 1, 0.0005, c.range(0.15, 0.3), c.range(0.6, 0.9), c.range(0.02, 0.05));
-    Kit::env(c, 2, 0.0005, c.range(0.06, 0.16), 0, 0.05);
-    p.mods.add("env_2", "filter_1_cutoff", c.range(0.22, 0.34));
+    Kit::env(c, 1, 0.0005, c.range(0.12, 0.6), c.range(0.7, 0.95), c.range(0.02, 0.08));
+    Kit::env(c, 2, 0.0005, c.range(0.11, 0.45), c.range(0.0, 0.25), 0.05);
+    p["env_2_decay_power"] = c.range(-6, -2);
+    p.mods.add("env_2", "filter_1_cutoff", c.range(0.3, 0.6));
 
-    p["polyphony"] = 1;
+    // Packs: Sonicspore basses are mono in 96%
+    p["polyphony"] = c.chance(0.85) ? 1 : 8;
     p["legato"] = 0;
-    Kit::distortion(c, c.pick({ DistortionType::kSoftClip, DistortionType::kLinearFold, DistortionType::kHardClip }),
-                    c.range(0, 8), c.range(0.6, 1));
+    if (c.chance(0.7))
+      Kit::distortion(c, c.pick({ DistortionType::kSoftClip, DistortionType::kSoftClip, DistortionType::kHardClip,
+                                  DistortionType::kLinearFold }), c.range(2, 8), c.range(0.4, 1));
     Kit::compressor(c, c.range(0.6, 1));
     Kit::eq(c, c.range(18, 26), c.range(-3, -1));
 
@@ -61,14 +67,7 @@ namespace gen {
       p.comments = "Hold one note \xE2\x80\x94 the bass rolls in 1/16 with a gap for the kick.";
     }
 
-    Kit::macro(c, 1, "CUTOFF", "filter_1_cutoff", 0.25);
-    Kit::macro(c, 2, "DISTO", "distortion_drive", 0.35);
-    p.mods.add("macro_control_2", "volume", -0.12);
-    Kit::macro(c, 3, "DECAY", "env_2_decay", 0.2);
-    if (oscs.size() > 1)
-      Kit::macro(c, 4, "SUB", "osc_2_level", 0.3);
-    else
-      Kit::macro(c, 4, "WAVE", "osc_1_wave_frame", 0.3);
+    PsyStyle::producerMacros(c, "Bass");
     Kit::volume(c, c.range(-7, -5));
   }
 

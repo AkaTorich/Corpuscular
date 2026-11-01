@@ -50,7 +50,8 @@ namespace gen {
         Kit::env(c, 2, 0.0005, 0.05, 0, 0.03);
         p.mods.add("env_2", "osc_1_transpose", c.range(0.15, 0.3));
       }
-      Kit::reverb(c, c.range(0.1, 0.25), c.range(0.2, 0.5), c.range(0.5, 1.5));
+      // Packs: percussion is dry, the SPACE macro opens the room
+      Kit::reverb(c, c.range(0.0, 0.05), c.range(0.2, 0.5), c.range(0.5, 1.5));
       Kit::macro(c, 1, "TONE", "filter_1_cutoff", 0.25);
       Kit::macro(c, 2, "LENGTH", "env_1_decay", 0.25);
     }

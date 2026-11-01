@@ -68,6 +68,8 @@ class HeaderSection : public SynthSection, public SaveSection::Listener,
         virtual void setPresetBrowserVisibility(bool visible, int current_tab) = 0;
         virtual void setBankExporterVisibility(bool visible, int current_tab) = 0;
         virtual void bankImported() = 0;
+        virtual void undoRequested() { }
+        virtual void redoRequested() { }
     };
 
     HeaderSection();
@@ -117,6 +119,9 @@ class HeaderSection : public SynthSection, public SaveSection::Listener,
     int tab_offset_;
     std::unique_ptr<PlainTextComponent> temporary_tab_;
     std::unique_ptr<OpenGlShapeButton> exit_temporary_button_;
+    // Corpuscular: undo and redo for the knobs, right of the preset name
+    std::unique_ptr<OpenGlShapeButton> undo_button_;
+    std::unique_ptr<OpenGlShapeButton> redo_button_;
 
     std::unique_ptr<SynthButton> view_spectrogram_;
     std::unique_ptr<Oscilloscope> oscilloscope_;
