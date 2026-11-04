@@ -8,7 +8,7 @@ Author of the changes: AkaTorich, 2026.
 ## Changes to the original code
 
 - **Name and identity.** Product name Corpuscular by AkaTorich, own plugin codes (`Ovkx` / `Crpc`),
-  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.4.
+  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.5.
 - **Sound engine** unchanged: the same preset renders bit for bit the same audio as before the changes.
 - **Tabs follow the path of the sound:** ARP → OSC → ROUTE → FILTER → AMP → FX → MOD → MATRIX → SETUP → GEN.
   - ARP — a built-in sequencer with the Melody Atoms generators (PSY ARP, ARP with 4th-bar endings, ARP STYLED,
@@ -17,6 +17,12 @@ Author of the changes: AkaTorich, 2026.
     In a playing DAW it follows the host tempo and bar grid; otherwise it starts from the pressed note.
     RATE 1/32…1/4 with triplets, OCTAVE, GATE, LENGTH. The piano roll edits everything: add, move, resize,
     delete, box select, copy/paste, duplicate, undo/redo, zoom and scroll in time and pitch.
+    The pattern length and start can be modulated: in MATRIX pick any source and a destination of the group Arp —
+    Arp Pattern Length (`arp_pattern_length`, 1 step…100 % of the set length, 100 % by default: a negative amount
+    or a bipolar source shortens the loop) and Arp Pattern Start (`arp_pattern_start`, 0…100 % of the length:
+    where it plays from; with Random on it every arp note comes from another place of the pattern).
+    Faint markers show the moved start and end. Every note knows its own end, so jumps never hang or cut notes.
+    With nothing on them the pattern plays as set, locked to the bar grid.
     The pattern and the ARP settings are saved in the preset and in the DAW project (key `corpuscular_arp`,
     which Vital ignores); a preset without one keeps the current pattern. With ARP off the MIDI passes untouched.
     `--headless --render` plays the pattern too when the preset has ARP on.

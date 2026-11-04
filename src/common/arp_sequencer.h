@@ -58,6 +58,18 @@ class ArpSequencer {
     // Pattern position in steps while it sounds, -1 when silent
     float getPlayhead() const { return playhead_.load(); }
 
+    // "arp_pattern_length" (0..1) from the engine, each block: the pattern plays its first value x length steps
+    // (at least one); at 1 it plays as set, locked to the bar grid
+    void setLengthModulation(float value) { length_mod_.store(jlimit(0.0f, 1.0f, value)); }
+    // The length the pattern plays with now (the set length when nothing modulates it)
+    int getModulatedLength() const;
+
+    // "arp_pattern_start" (0..1) from the engine, each block: the pattern plays from that share of its length on.
+    // With Random on it every arp note comes from another place of the pattern.
+    void setStartModulation(float value) { start_mod_.store(jlimit(0.0f, 1.0f, value)); }
+    // The step the pattern plays from now (0 when nothing moves it)
+    int getModulatedStart() const;
+
     // Free-form settings of the ARP tab (mode, key, scale…) kept with the pattern
     void setUiState(const json& state);
     json getUiState() const;
@@ -81,9 +93,17 @@ class ArpSequencer {
       bool on;
       int note;
       int velocity;
+      double duration;      // note ons: how long the note sounds, in steps
     };
 
-    void rebuildSchedule();
+    struct PendingOff {
+      int note;
+      double time;
+    };
+
+    void rebuildSchedule(int length);
+    int modulatedLength(int length) const;
+    int modulatedStart(int length) const;
     void flush(MidiBuffer& out, int sample);
     static double rateFactor(int rate);
 
@@ -101,6 +121,8 @@ class ArpSequencer {
     std::atomic<float> gate_;
     std::atomic<float> playhead_;
     std::atomic<bool> pattern_changed_;
+    std::atomic<float> length_mod_;
+    std::atomic<float> start_mod_;
 
     // Audio thread state
     MidiBuffer output_;
@@ -111,5 +133,9 @@ class ArpSequencer {
     bool was_enabled_;
     double free_position_;
     double expected_host_position_;
+    int schedule_length_;
+    double loop_origin_;
+    std::vector<PendingOff> pending_offs_;
+    int previous_length_;
     bool active_notes_[128];
 };

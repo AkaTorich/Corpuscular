@@ -104,6 +104,10 @@ namespace vital {
       void setSidechainInput(const poly_float* audio, int num_samples);
       VocoderModule* getVocoder();
 
+      // Corpuscular: "arp_pattern_length" with its modulation, as of the last processed block (the ARP sequencer reads it)
+      mono_float getArpLengthModulation() const { return arp_pattern_length_ ? arp_pattern_length_->buffer[0][0] : 0.0f; }
+      mono_float getArpStartModulation() const { return arp_pattern_start_ ? arp_pattern_start_->buffer[0][0] : 0.0f; }
+
     private:
       void setOversamplingAmount(int oversampling_amount, int sample_rate);
 
@@ -112,6 +116,8 @@ namespace vital {
       bool sidechain_written_;
     
       SynthVoiceHandler* voice_handler_;
+      Output* arp_pattern_length_ = nullptr;
+      Output* arp_pattern_start_ = nullptr;
       ReorderableEffectChain* effect_chain_;
       Add* output_total_;
 

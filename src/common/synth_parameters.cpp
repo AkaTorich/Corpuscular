@@ -393,6 +393,12 @@ namespace vital {
       ValueDetails::kIndexed, false, "", "Vocoder Freeze", strings::kOffOnNames },
     { "vocoder_level", 0x000900, -24.0, 12.0, 0.0, 0.0, 1.0,
       ValueDetails::kLinear, false, " dB", "Vocoder Level", nullptr },
+    // Corpuscular: the ARP pattern length (1 step..100 % of the set length; 100 % plays it as set), a modulation target (MATRIX, group Arp)
+    { "arp_pattern_length", 0x000900, 0.0, 1.0, 1.0, 0.0, 100.0,
+      ValueDetails::kLinear, false, "%", "Arp Pattern Length", nullptr },
+    // Corpuscular: where in the ARP pattern it plays from (0..100 % of its length), a modulation target (MATRIX, group Arp)
+    { "arp_pattern_start", 0x000900, 0.0, 1.0, 0.0, 0.0, 100.0,
+      ValueDetails::kLinear, false, "%", "Arp Pattern Start", nullptr },
   };
 
   const ValueDetails ValueDetailsLookup::env_parameter_list[] = {

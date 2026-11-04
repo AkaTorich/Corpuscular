@@ -62,6 +62,8 @@ namespace vital {
     addProcessor(beats_per_second_clamped);
 
     Output* polyphony = createMonoModControl("polyphony");
+    arp_pattern_length_ = createMonoModControl("arp_pattern_length");
+    arp_pattern_start_ = createMonoModControl("arp_pattern_start");
     Value* voice_priority = createBaseControl("voice_priority");
     Value* voice_override = createBaseControl("voice_override");
 

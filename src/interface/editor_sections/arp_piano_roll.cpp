@@ -24,7 +24,7 @@ namespace {
 
 ArpPianoRoll::ArpPianoRoll() : image_component_("arp_piano_roll"), listener_(nullptr), length_(16),
                                last_note_length_(1), first_step_(0.0f), steps_visible_(32.0f), low_pitch_(48.0f),
-                               rows_visible_(30.0f), playhead_(-1.0f), tonic_pitch_class_(0),
+                               rows_visible_(30.0f), playhead_(-1.0f), modulated_length_(-1), modulated_start_(0), tonic_pitch_class_(0),
                                drag_mode_(kNone), length_origin_(16), drag_changed_(false) {
   image_component_.setComponent(this);
   image_component_.setInterceptsMouseClicks(false, false);
@@ -60,6 +60,20 @@ void ArpPianoRoll::setScale(int tonic_pitch_class, const Array<int>& steps) {
     pitch += step;
     scale_pitches_[pitch % 12] = true;
   }
+  redraw();
+}
+
+void ArpPianoRoll::setModulatedLength(int length) {
+  if (length == modulated_length_)
+    return;
+  modulated_length_ = length;
+  redraw();
+}
+
+void ArpPianoRoll::setModulatedStart(int step) {
+  if (step == modulated_start_)
+    return;
+  modulated_start_ = step;
   redraw();
 }
 
@@ -623,6 +637,28 @@ void ArpPianoRoll::paint(Graphics& g) {
     marker.addTriangle(end_x - ruler * 0.45f, 0.0f, end_x, ruler, end_x, 0.0f);
     g.fillPath(marker);
     g.fillRect(end_x - 1.0f, 0.0f, 2.0f, height);
+  }
+  // The start as a modulation moves it
+  if (modulated_start_ > 0) {
+    float start_x = stepToX((float)modulated_start_);
+    if (start_x >= key_width && start_x <= width) {
+      g.setColour(note_colour.withAlpha(0.45f));
+      Path start_marker;
+      start_marker.addTriangle(start_x, 0.0f, start_x, ruler, start_x + ruler * 0.45f, 0.0f);
+      g.fillPath(start_marker);
+      g.fillRect(start_x - 1.0f, 0.0f, 2.0f, height);
+    }
+  }
+  // The end as a modulation moves it
+  if (modulated_length_ > 0 && modulated_length_ != length_) {
+    float mod_x = stepToX((float)modulated_length_);
+    if (mod_x >= key_width && mod_x <= width) {
+      g.setColour(note_colour.withAlpha(0.45f));
+      Path mod_marker;
+      mod_marker.addTriangle(mod_x - ruler * 0.45f, 0.0f, mod_x, ruler, mod_x, 0.0f);
+      g.fillPath(mod_marker);
+      g.fillRect(mod_x - 1.0f, 0.0f, 2.0f, height);
+    }
   }
   g.setColour(line);
   g.fillRect(0.0f, ruler - 1.0f, width, 1.0f);

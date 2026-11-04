@@ -62,6 +62,7 @@ namespace {
     { "random_", "Randoms" },
     { "env_", "Envelopes" },
     { "modulation_", "Mod Matrix" },
+    { "arp_", "Arp" },
     { "", "" },
     { "chorus_", "Chorus" },
     { "compressor_", "Compressor" },

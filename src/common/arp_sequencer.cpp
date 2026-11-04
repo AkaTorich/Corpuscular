@@ -29,10 +29,12 @@ double ArpSequencer::rateFactor(int rate) {
 
 ArpSequencer::ArpSequencer() : length_(kArpDefaultLength), root_(kArpDefaultRoot), ui_state_(json::object()),
                                enabled_(false), latch_(false), rate_(k16th), octave_(0), gate_(0.85f),
-                               playhead_(-1.0f), pattern_changed_(false), latched_tonic_(-1), previous_transpose_(0), was_active_(false),
-                               was_enabled_(false), free_position_(0.0), expected_host_position_(-1.0) {
+                               playhead_(-1.0f), pattern_changed_(false), length_mod_(1.0f), start_mod_(0.0f), latched_tonic_(-1), previous_transpose_(0), was_active_(false),
+                               was_enabled_(false), free_position_(0.0), expected_host_position_(-1.0),
+                               schedule_length_(kArpDefaultLength), loop_origin_(0.0), previous_length_(kArpDefaultLength) {
   output_.ensureSize(8192);
   held_.reserve(128);
+  pending_offs_.reserve(kMaxNotes);
   std::fill(std::begin(active_notes_), std::end(active_notes_), false);
 
   // Until something is generated: a plain tonic-fifth-octave figure
@@ -58,7 +60,7 @@ void ArpSequencer::setPattern(const std::vector<Note>& notes, int length, int ro
   }
   length_ = jlimit(1, kMaxSteps, length);
   root_ = jlimit(0, 127, root);
-  rebuildSchedule();
+  rebuildSchedule(modulatedLength(length_));
   // Replaced while playing: the old pattern's sounding notes get their note offs on the next block
   pattern_changed_.store(true);
 }
@@ -73,6 +75,30 @@ int ArpSequencer::getLength() const {
   return length_;
 }
 
+int ArpSequencer::getModulatedLength() const {
+  ScopedLock lock(lock_);
+  return modulatedLength(length_);
+}
+
+int ArpSequencer::getModulatedStart() const {
+  ScopedLock lock(lock_);
+  return modulatedStart(modulatedLength(length_));
+}
+
+int ArpSequencer::modulatedStart(int length) const {
+  float mod = start_mod_.load();
+  if (mod <= 0.0f || length <= 1)
+    return 0;
+  return (int)std::round(mod * length) % length;
+}
+
+int ArpSequencer::modulatedLength(int length) const {
+  float mod = length_mod_.load();
+  if (mod >= 1.0f)
+    return length;
+  return jlimit(1, length, (int)std::round(length * mod));
+}
+
 int ArpSequencer::getRoot() const {
   ScopedLock lock(lock_);
   return root_;
@@ -85,7 +111,7 @@ void ArpSequencer::setRate(int rate) {
 void ArpSequencer::setGate(float gate) {
   ScopedLock lock(lock_);
   gate_.store(jlimit(0.05f, 1.0f, gate));
-  rebuildSchedule();
+  rebuildSchedule(schedule_length_);
 }
 
 void ArpSequencer::setUiState(const json& state) {
@@ -98,13 +124,14 @@ json ArpSequencer::getUiState() const {
   return ui_state_;
 }
 
-// Called under lock_: note on/off times in steps; notes past the pattern end are left out,
+// Called under lock_: note on/off times in steps for a pattern `length` steps long; notes past its end are left out,
 // a note never overlaps the next note of the same pitch
-void ArpSequencer::rebuildSchedule() {
+void ArpSequencer::rebuildSchedule(int length) {
   schedule_.clear();
+  schedule_length_ = length;
   std::vector<Note> notes;
   for (const Note& note : notes_) {
-    if (note.start < length_)
+    if (note.start < length)
       notes.push_back(note);
   }
 
@@ -124,9 +151,9 @@ void ArpSequencer::rebuildSchedule() {
 
   float gate = gate_.load();
   for (const Note& note : notes) {
-    double end = note.start + std::max(0.05, std::min<double>(note.length, length_ - note.start) * gate);
-    schedule_.push_back({ (double)note.start, true, note.midi, note.velocity });
-    schedule_.push_back({ end, false, note.midi, 0 });
+    double end = note.start + std::max(0.05, std::min<double>(note.length, length - note.start) * gate);
+    schedule_.push_back({ (double)note.start, true, note.midi, note.velocity, end - note.start });
+    schedule_.push_back({ end, false, note.midi, 0, 0.0 });
   }
   std::sort(schedule_.begin(), schedule_.end(), [](const Event& a, const Event& b) {
     if (a.time != b.time)
@@ -269,6 +296,7 @@ void ArpSequencer::fromJson(const json& data) {
 }
 
 void ArpSequencer::flush(MidiBuffer& out, int sample) {
+  pending_offs_.clear();
   for (int note = 0; note < 128; ++note) {
     if (active_notes_[note]) {
       out.addEvent(MidiMessage::noteOff(1, note), sample);
@@ -325,6 +353,9 @@ void ArpSequencer::process(MidiBuffer& midi, int num_samples, double sample_rate
     latched_tonic_ = -1;
 
   ScopedLock lock(lock_);
+  int modulated = modulatedLength(length_);
+  if (modulated != schedule_length_)
+    rebuildSchedule(modulated);
   int tonic = held_.empty() ? latched_tonic_ : held_.back();
   bool active = tonic >= 0 && !schedule_.empty() && length_ > 0 && bpm > 0.0 && sample_rate > 0.0;
   if (!active) {
@@ -362,43 +393,81 @@ void ArpSequencer::process(MidiBuffer& midi, int num_samples, double sample_rate
     expected_host_position_ = -1.0;
   }
   double block_end = block_start + block_steps;
-  double length = length_;
 
-  // Note offs before note ons at the same moment
-  for (int pass = 0; pass < 2; ++pass) {
-    bool want_on = pass == 1;
-    for (const Event& event : schedule_) {
-      if (event.on != want_on)
-        continue;
-      int note = event.note + transpose;
-      if (note < 0 || note > 127)
+  // A modulated length: the loop end moves, the position in the pattern runs on and wraps at the new end.
+  // Not modulated, the pattern sits on the bar grid as before.
+  if (!was_active_ || length_mod_.load() >= 1.0f)
+    loop_origin_ = 0.0;
+  else if (modulated != previous_length_) {
+    double phase = std::fmod(std::max(0.0, block_start - loop_origin_), (double)previous_length_);
+    if (phase >= modulated)
+      phase = std::fmod(phase, (double)modulated);
+    loop_origin_ = block_start - phase;
+  }
+  previous_length_ = modulated;
+  double length = modulated;
+
+  // "arp_pattern_start" shifts where in the pattern it plays from (whole steps)
+  int start = modulatedStart(modulated);
+  double origin = loop_origin_ - start;
+  auto sampleAt = [&](double time) {
+    return (int)jlimit(0.0, num_samples - 1.0, (time - block_start) * samples_per_step);
+  };
+
+  // Every note on knows when it ends (pending_offs_), so a jump of the start or the length never leaves
+  // a note hanging and never cuts the one that just began
+  for (const Event& event : schedule_) {
+    if (!event.on)
+      continue;
+    int note = event.note + transpose;
+    if (note < 0 || note > 127)
+      continue;
+
+    double cycle = std::ceil((block_start - origin - event.time) / length);
+    for (;; cycle += 1.0) {
+      double time = origin + event.time + cycle * length;
+      if (time >= block_end)
+        break;
+      if (time < block_start)
         continue;
 
-      double cycle = std::ceil((block_start - event.time) / length);
-      for (;; cycle += 1.0) {
-        double time = event.time + cycle * length;
-        if (time >= block_end)
-          break;
-        if (time < block_start)
+      int sample = sampleAt(time);
+      // The same pitch still sounding ends here, or earlier when its own end comes first
+      bool ended = false;
+      for (size_t i = 0; i < pending_offs_.size(); ++i) {
+        if (pending_offs_[i].note != note)
           continue;
-
-        int sample = (int)jlimit(0.0, num_samples - 1.0, (time - block_start) * samples_per_step);
-        if (want_on) {
-          if (active_notes_[note])
-            output_.addEvent(MidiMessage::noteOff(1, note), sample);
-          output_.addEvent(MidiMessage::noteOn(1, note, (uint8)event.velocity), sample);
-          active_notes_[note] = true;
-        }
-        else if (active_notes_[note]) {
-          output_.addEvent(MidiMessage::noteOff(1, note), sample);
-          active_notes_[note] = false;
-        }
+        output_.addEvent(MidiMessage::noteOff(1, note), sampleAt(std::min(pending_offs_[i].time, time)));
+        pending_offs_[i] = pending_offs_.back();
+        pending_offs_.pop_back();
+        ended = true;
+        break;
       }
+      if (active_notes_[note] && !ended)
+        output_.addEvent(MidiMessage::noteOff(1, note), sample);
+      output_.addEvent(MidiMessage::noteOn(1, note, (uint8)event.velocity), sample);
+      active_notes_[note] = true;
+      pending_offs_.push_back({ note, time + event.duration });
     }
+  }
+
+  for (size_t i = 0; i < pending_offs_.size();) {
+    if (pending_offs_[i].time >= block_end) {
+      ++i;
+      continue;
+    }
+    int note = pending_offs_[i].note;
+    if (active_notes_[note]) {
+      output_.addEvent(MidiMessage::noteOff(1, note), sampleAt(pending_offs_[i].time));
+      active_notes_[note] = false;
+    }
+    pending_offs_[i] = pending_offs_.back();
+    pending_offs_.pop_back();
   }
 
   free_position_ = block_end;
   was_active_ = true;
-  playhead_.store((float)std::fmod(std::max(0.0, block_start), length));
+  double phase = std::fmod(block_start - origin, length);
+  playhead_.store((float)(phase < 0.0 ? phase + length : phase));
   midi.swapWith(output_);
 }

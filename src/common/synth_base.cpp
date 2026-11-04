@@ -451,6 +451,8 @@ void SynthBase::renderAudioToFile(File file, float seconds, float bpm, std::vect
         for (int note : notes)
           midi.addEvent(MidiMessage::noteOff(1, note), std::min(kBufferSize - 1, on_samples - samples));
       }
+      arp_sequencer_.setLengthModulation(engine_->getArpLengthModulation());
+      arp_sequencer_.setStartModulation(engine_->getArpStartModulation());
       arp_sequencer_.process(midi, kBufferSize, kSampleRate, bpm, false, 0.0);
       processMidi(midi);
     }
@@ -664,6 +666,9 @@ void SynthBase::processArpSequencer(MidiBuffer& midi, int num_samples, double bp
   // Without a host tempo the synth's own tempo is used (stored as beats per second)
   if (bpm <= 0.0 && controls_.count("beats_per_minute"))
     bpm = controls_["beats_per_minute"]->value() * 60.0;
+  // The pattern length and start as modulated in the last block (MATRIX, group Arp)
+  arp_sequencer_.setLengthModulation(engine_->getArpLengthModulation());
+  arp_sequencer_.setStartModulation(engine_->getArpStartModulation());
   arp_sequencer_.process(midi, num_samples, getSampleRate(), bpm, host_playing, host_ppq);
 }
 

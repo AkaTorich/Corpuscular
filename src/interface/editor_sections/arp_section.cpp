@@ -745,8 +745,11 @@ void ArpSection::visibilityChanged() {
 
 void ArpSection::timerCallback() {
   ArpSequencer* seq = sequencer();
-  if (seq)
-    piano_roll_.setPlayhead(seq->getPlayhead());
+  if (seq == nullptr)
+    return;
+  piano_roll_.setPlayhead(seq->getPlayhead());
+  piano_roll_.setModulatedLength(seq->getModulatedLength());
+  piano_roll_.setModulatedStart(seq->getModulatedStart());
 }
 
 void ArpSection::paintBackground(Graphics& g) {

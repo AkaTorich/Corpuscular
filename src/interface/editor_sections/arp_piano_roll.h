@@ -16,7 +16,9 @@
 // Piano roll of the ARP tab, drawn into its own texture.
 // Mouse: click an empty cell to add a note (drag to place it), drag a note to move it, drag its right edge to
 // change its length, right-click or double-click to delete, Shift+drag on empty space to select a box,
-// Shift+click adds to the selection, click or drag in the ruler to move the pattern end.
+// Shift+click adds to the selection, click or drag in the ruler to move the pattern end. "Arp Pattern Length" in the
+// MATRIX destinations shortens it, "Arp Pattern Start"
+// moves where it plays from; both are drawn as faint markers.
 // Wheel scrolls notes, Shift+wheel scrolls time, Ctrl+wheel zooms time, Alt+wheel zooms notes.
 // Keys: Delete, Ctrl+A, Ctrl+C / Ctrl+V, Ctrl+D (duplicate), Ctrl+Z / Ctrl+Y, arrows move (Shift: by octave or bar).
 class ArpPianoRoll : public Component {
@@ -38,6 +40,11 @@ class ArpPianoRoll : public Component {
     void setLength(int length);
     void setScale(int tonic_pitch_class, const Array<int>& steps);
     void setPlayhead(float step);
+    // Where the pattern ends while something modulates its length (drawn faint next to the marker); <= 0 hides it
+    void setModulatedLength(int length);
+    // Where the pattern plays from while something modulates its start (drawn faint); 0 hides it
+    void setModulatedStart(int step);
+    float getRulerHeight() const { return rulerHeight(); }
 
     void zoomTime(float factor);
     void zoomPitch(float factor);
@@ -105,6 +112,8 @@ class ArpPianoRoll : public Component {
     float low_pitch_;
     float rows_visible_;
     float playhead_;
+    int modulated_length_;
+    int modulated_start_;
 
     int tonic_pitch_class_;
     bool scale_pitches_[12];
