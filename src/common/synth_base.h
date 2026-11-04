@@ -95,10 +95,6 @@ class SynthBase : public MidiManager::Listener {
     json getStateJson() { return saveToJson(); }
     // Corpuscular: the ARP tab's sequencer, fed by the incoming notes before the engine
     ArpSequencer& getArpSequencer() { return arp_sequencer_; }
-    // Corpuscular: the vocoder's voice for the next processAudio() call (left/right may be the same channel)
-    void setSidechainInput(const float* left, const float* right, int num_samples);
-    // A voice for --render: looped into the sidechain so the vocoder can be heard offline
-    void setRenderVoice(std::vector<float> voice) { render_voice_ = std::move(voice); }
     void processArpSequencer(MidiBuffer& midi, int num_samples, double bpm, bool host_playing, double host_ppq);
 
     void setMpeEnabled(bool enabled);
@@ -201,8 +197,6 @@ class SynthBase : public MidiManager::Listener {
     moodycamel::ConcurrentQueue<vital::modulation_change> modulation_change_queue_;
     Tuning tuning_;
     ArpSequencer arp_sequencer_;
-    std::unique_ptr<vital::poly_float[]> sidechain_buffer_;
-    std::vector<float> render_voice_;
     std::atomic<int> state_loads_ { 0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthBase)

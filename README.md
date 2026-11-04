@@ -39,15 +39,15 @@ Author of the changes: AkaTorich, 2026.
   - ROUTE — where every source goes (filter 1, filter 2, both, effects, direct) and whether the filters run in series, as a diagram and a grid.
   - FILTER — filter 1 and filter 2, large.
   - AMP — the envelopes large, voices, velocity, glide.
-  - FX — the effect chain, with a tenth effect VOCODER (QuantumVocoder) at the end of the list:
-    the voice comes from the sidechain bus in a DAW (else the main input), in the standalone app from the audio input;
-    CARRIER SYNTH lets the synth itself speak, TABLE uses a wavetable (built-in, or any `.vitaltable/.wav/.flac/.wt`
-    from the wavetable folders) played AUTO (follows the voice's pitch), FIXED (NOTE + OCTAVE) or KEY (last played note).
+  - FX — the effect chain, with a tenth effect VOCODER (QuantumVocoder) at the end of the list. Corpuscular is an
+    instrument with no audio input: the synth and a wavetable (built-in, or any `.vitaltable/.wav/.flac/.wt` from the
+    wavetable folders) vocode each other. CARRIER SYNTH: the synth's sound goes through the vocoder and speaks with
+    the table's formants (a vowel table makes it sing vowels, POS picks the vowel); CARRIER TABLE: the table sounds
+    and the synth gives it its formants. The table plays AUTO (at the synth's pitch), FIXED (NOTE + OCTAVE) or KEY
+    (last played note).
     Knobs: POSITION, DETUNE, GLIDE, UNISON, BANDS 8–40, MIX, LEVEL, WIDTH, FORMANT ±12 st, ATTACK, RELEASE, AIR,
-    NOISE (consonants), GATE, TILT, SPREAD (bands across the stereo field), FREEZE (holds the spectrum). The window under the table name shows the table's frame at POS, with the voice's band levels over it.
-    With no voice at all (two seconds of digital silence on the input) the synth's own sound becomes the voice,
-    so every knob still shapes the sound; NOISE and GATE only matter with a real voice.
-    `--headless --render preset.vital --voice voice.wav` feeds a voice file (looped) to the vocoder.
+    NOISE (consonants), GATE, TILT, SPREAD (bands across the stereo field), FREEZE (holds the spectrum). The window
+    under the table name shows the table's frame at POS, with the band levels of the modulator over it.
     Presets keep Vital's 9-effect order and store the vocoder's slot and table under `corpuscular_vocoder`.
   - MOD — envelopes, LFOs and random sources across the whole window.
   - MATRIX — the modulation matrix.

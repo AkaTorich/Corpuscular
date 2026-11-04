@@ -13,9 +13,9 @@
 #include <atomic>
 
 // Quantum Vocoder inside Corpuscular's effect chain.
-// The voice comes from the audio input (sidechain in a DAW, microphone in the app); what speaks is either the synth
-// itself (SYNTH, stereo) or a wavetable carrier (TABLE) whose pitch follows the voice (AUTO), a knob (FIXED) or the
-// last played note (KEY). On top of the original plugin: stereo bands, noise only on consonants, freeze, gate,
+// No audio input: the synth and a wavetable vocode each other. SYNTH: the synth's sound (stereo) speaks with the
+// table's formants (a vowel table makes it sing vowels); TABLE: the table speaks with the synth's formants. The table
+// plays at the synth's pitch (AUTO), a knob (FIXED) or the last played note (KEY). On top of the original plugin: stereo bands, noise only on consonants, freeze, gate,
 // tilt and band spread.
 namespace wv
 {
@@ -56,8 +56,8 @@ namespace wv
         void reset();
         void setTable(const Wavetable* table) { carrier.setTable(table); }
 
-        // voice: mono modulator; left/right: the synth in, the vocoder out
-        void process(const float* voice, float* left, float* right, int numSamples,
+        // left/right: the synth in, the vocoder out
+        void process(float* left, float* right, int numSamples,
                      const SynthVocoderParams& p, float keyNote);
 
         int getNumBands() const { return numBandsForUi.load(); }
@@ -89,10 +89,6 @@ namespace wv
 
         // Gate on the voice level
         float gate = 0, gateCoef = 0;
-
-        // No voice at all (nothing connected): the synth's own sound becomes the modulator
-        int silentCount = 0, silentLimit = 88200;
-        float voicePresent = 0, presentCoef = 0;
 
         // Level matching and limiter from the original plugin
         float inPower = 0, wetPower = 0, levelGain = 1, levelCoef = 0.0001f, levelUp = 0, levelDown = 0;

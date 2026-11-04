@@ -21,9 +21,7 @@
 #include "load_save.h"
 
 SynthPlugin::SynthPlugin() : AudioProcessor(BusesProperties()
-                                                .withOutput("Output", AudioChannelSet::stereo(), true)
-                                                .withInput("Input", AudioChannelSet::stereo(), false)
-                                                .withInput("Sidechain", AudioChannelSet::stereo(), true)) {
+                                                .withOutput("Output", AudioChannelSet::stereo(), true)) {
   last_seconds_time_ = 0.0;
 
   int num_params = vital::Parameters::getNumParameters();
@@ -169,29 +167,12 @@ void SynthPlugin::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midi_messa
                         host_playing, position_info_.ppqPosition);
   }
 
-  // Corpuscular: the vocoder's voice — the sidechain if the host feeds it, otherwise the main input
-  const float* voice_left = nullptr;
-  const float* voice_right = nullptr;
-  for (int bus : { 1, 0 }) {
-    if (bus >= getBusCount(true) || !getBus(true, bus)->isEnabled())
-      continue;
-    AudioSampleBuffer input = getBusBuffer(buffer, true, bus);
-    if (input.getNumChannels() > 0) {
-      voice_left = input.getReadPointer(0);
-      voice_right = input.getReadPointer(std::min(1, input.getNumChannels() - 1));
-      break;
-    }
-  }
-
   double sample_time = 1.0 / AudioProcessor::getSampleRate();
   for (int sample_offset = 0; sample_offset < total_samples;) {
     int num_samples = std::min<int>(total_samples - sample_offset, vital::kMaxBufferSize);
 
     engine_->correctToTime(last_seconds_time_);
     processMidi(midi_messages, sample_offset, sample_offset + num_samples);
-    // Read before processAudio writes this part of the shared buffer
-    if (voice_left)
-      setSidechainInput(voice_left + sample_offset, voice_right + sample_offset, num_samples);
     processAudio(&buffer, num_channels, num_samples, sample_offset);
 
     last_seconds_time_ += num_samples * sample_time;
@@ -202,11 +183,7 @@ void SynthPlugin::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midi_messa
 bool SynthPlugin::isBusesLayoutSupported(const BusesLayout& layouts) const {
   if (layouts.getMainOutputChannelSet() != AudioChannelSet::stereo())
     return false;
-  for (const AudioChannelSet& input : layouts.inputBuses) {
-    if (!input.isDisabled() && input != AudioChannelSet::mono() && input != AudioChannelSet::stereo())
-      return false;
-  }
-  return true;
+  return layouts.inputBuses.isEmpty();
 }
 
 bool SynthPlugin::hasEditor() const {

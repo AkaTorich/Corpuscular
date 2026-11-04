@@ -13,8 +13,8 @@
 
 namespace vital {
 
-  VocoderModule::VocoderModule(const Output* sidechain, const Output* keytrack) :
-      SynthModule(0, 1), sidechain_(sidechain), keytrack_(keytrack),
+  VocoderModule::VocoderModule(const Output* keytrack) :
+      SynthModule(0, 1), keytrack_(keytrack),
       carrier_(nullptr), pitch_mode_(nullptr), note_(nullptr), octave_(nullptr), unison_(nullptr), bands_(nullptr),
       freeze_(nullptr), mix_(nullptr), position_(nullptr), detune_(nullptr), glide_(nullptr), width_(nullptr),
       formant_(nullptr), attack_(nullptr), release_(nullptr), air_(nullptr), noise_(nullptr), gate_(nullptr),
@@ -22,7 +22,6 @@ namespace vital {
     // Room for the largest oversampled block, so the audio thread never allocates
     static constexpr int kMaxSamples = kMaxBufferSize * 16;
     vocoder_ = std::make_shared<wv::SynthVocoder>();
-    voice_ = std::make_shared<std::vector<float>>(kMaxSamples);
     left_ = std::make_shared<std::vector<float>>(kMaxSamples);
     right_ = std::make_shared<std::vector<float>>(kMaxSamples);
   }
@@ -86,18 +85,15 @@ namespace vital {
   void VocoderModule::processWithInput(const poly_float* audio_in, int num_samples) {
     SynthModule::process(num_samples);
 
-    if ((int)voice_->size() < num_samples) {
-      voice_->resize(num_samples);
+    if ((int)left_->size() < num_samples) {
       left_->resize(num_samples);
       right_->resize(num_samples);
     }
 
-    // Lanes hold (left, right, left, right); the voice is the mono sum of the sidechain
-    const poly_float* sidechain = sidechain_->buffer;
+    // Lanes hold (left, right, left, right)
     for (int i = 0; i < num_samples; ++i) {
       (*left_)[i] = audio_in[i][0];
       (*right_)[i] = audio_in[i][1];
-      (*voice_)[i] = 0.5f * (sidechain[i][0] + sidechain[i][1]);
     }
 
     wv::SynthVocoderParams params;
@@ -126,7 +122,7 @@ namespace vital {
     // The last played note, from the voice handler's offset to middle C
     float key_note = keytrack_ ? kMidiTrackCenter + keytrack_->buffer[0][0] : -1.0f;
 
-    vocoder_->process(voice_->data(), left_->data(), right_->data(), num_samples, params, key_note);
+    vocoder_->process(left_->data(), right_->data(), num_samples, params, key_note);
 
     poly_float* audio_out = output()->buffer;
     for (int i = 0; i < num_samples; ++i) {

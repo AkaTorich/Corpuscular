@@ -33,9 +33,7 @@
 
 namespace vital {
 
-  SoundEngine::SoundEngine() : SynthModule(0, 1), sidechain_(std::make_unique<Output>(kMaxBufferSize, 16)),
-                               sidechain_oversample_(1), sidechain_written_(false),
-                               voice_handler_(nullptr), effect_chain_(nullptr),
+  SoundEngine::SoundEngine() : SynthModule(0, 1), voice_handler_(nullptr), effect_chain_(nullptr),
                                output_total_(nullptr), last_oversampling_amount_(-1), last_sample_rate_(-1),
                                oversampling_(nullptr), legato_(nullptr), decimator_(nullptr), peak_meter_(nullptr) {
     SoundEngine::init();
@@ -80,8 +78,7 @@ namespace vital {
     createBaseControl("mod_wheel");
 
     Value* effect_chain_order = createBaseControl("effect_chain_order");
-    effect_chain_ = new ReorderableEffectChain(beats_per_second, voice_handler_->midi_offset_output(),
-                                               sidechain_.get());
+    effect_chain_ = new ReorderableEffectChain(beats_per_second, voice_handler_->midi_offset_output());
     addSubmodule(effect_chain_);
     addProcessor(effect_chain_);
     effect_chain_->plug(voice_handler_, ReorderableEffectChain::kAudio);
@@ -243,8 +240,6 @@ namespace vital {
     voice_handler_->setOversampleAmount(oversample);
     effect_chain_->setOversampleAmount(oversample);
     output_total_->setOversampleAmount(oversample);
-    sidechain_->ensureBufferSize(kMaxBufferSize * oversample);
-    sidechain_oversample_ = oversample;
     last_oversampling_amount_ = oversampling_amount;
     last_sample_rate_ = sample_rate;
   }
@@ -254,10 +249,7 @@ namespace vital {
 
     FloatVectorOperations::disableDenormalisedNumberSupport();
     voice_handler_->setLegato(legato_->value());
-    if (!sidechain_written_)
-      utils::zeroBuffer(sidechain_->buffer, std::min(sidechain_->buffer_size, num_samples * sidechain_oversample_));
     ProcessorRouter::process(num_samples);
-    sidechain_written_ = false;
 
     if (getNumActiveVoices() == 0) {
       CircularQueue<ModulationConnectionProcessor*>& connections = voice_handler_->enabledModulationConnection();
@@ -269,16 +261,6 @@ namespace vital {
 
     for (auto& status_source : data_->status_outputs)
       status_source.second->update();
-  }
-
-  void SoundEngine::setSidechainInput(const poly_float* audio, int num_samples) {
-    // The effect chain runs oversampled: every input sample is repeated
-    int oversample = sidechain_oversample_;
-    int total = std::min(sidechain_->buffer_size, num_samples * oversample);
-    poly_float* buffer = sidechain_->buffer;
-    for (int i = 0; i < total; ++i)
-      buffer[i] = audio[i / oversample];
-    sidechain_written_ = true;
   }
 
   VocoderModule* SoundEngine::getVocoder() {

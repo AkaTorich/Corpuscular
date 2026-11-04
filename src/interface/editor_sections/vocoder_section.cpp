@@ -103,7 +103,7 @@ class VocoderTableViewer : public OpenGlLineRenderer {
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocoderTableViewer)
 };
 
-// Live band levels of the voice, one bar per band
+// Live band levels of the modulator (the table, or the synth with CARRIER TABLE), one bar per band
 class VocoderBandViewer : public BarRenderer {
   public:
     static constexpr float kRangeDb = 60.0f;

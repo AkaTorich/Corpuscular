@@ -30,8 +30,6 @@ namespace wv
         hissCoef = synthVocoderCoef(sr, 0.008);
         unvoicedCoef = synthVocoderCoef(sr, 0.012);
         gateCoef = synthVocoderCoef(sr, 0.01);
-        presentCoef = synthVocoderCoef(sr, 0.02);
-        silentLimit = (int) (sr * 2.0);
 
         levelCoef = synthVocoderCoef(sr, 0.25);
         levelUp = synthVocoderCoef(sr, 1.0);
@@ -62,8 +60,6 @@ namespace wv
         for (auto& f : airF) f.reset();
         for (auto& f : hissF) f.reset();
         hissEnv = voiceEnv = unvoiced = gate = 0;
-        silentCount = silentLimit;
-        voicePresent = 0;
         inPower = wetPower = 0;
         levelGain = 1;
         inEnv = outEnv = 0;
@@ -161,20 +157,17 @@ namespace wv
         autoLocked = true;
     }
 
-    void SynthVocoder::process(const float* voice, float* left, float* right, int numSamples,
+    void SynthVocoder::process(float* left, float* right, int numSamples,
                                const SynthVocoderParams& p, float keyNote)
     {
         if (numSamples <= 0) return;
         setup(p);
 
-        if (p.tableCarrier)
-        {
-            // FIXED: the knob; KEY: the last played note; AUTO: the knob until the voice has a pitch
-            if (p.pitchMode == 1 || (p.pitchMode == 0 && !autoLocked))
-                carrier.setMonoFrequency((float) synthVocoderNoteToHz(p.note + 12.0 * p.octave));
-            else if (p.pitchMode == 2 && keyNote > 0.0f)
-                carrier.setMonoFrequency((float) synthVocoderNoteToHz(keyNote + 12.0 * p.octave));
-        }
+        // The table's pitch. FIXED: the knob; KEY: the last played note; AUTO: the synth's pitch (the knob until it has one)
+        if (p.pitchMode == 1 || (p.pitchMode == 0 && !autoLocked))
+            carrier.setMonoFrequency((float) synthVocoderNoteToHz(p.note + 12.0 * p.octave));
+        else if (p.pitchMode == 2 && keyNote > 0.0f)
+            carrier.setMonoFrequency((float) synthVocoderNoteToHz(keyNote + 12.0 * p.octave));
 
         const float mix = std::clamp(p.mix, 0.0f, 1.0f);
         const float outGain = std::pow(10.0f, p.outputDb / 20.0f);
@@ -183,22 +176,18 @@ namespace wv
 
         for (int i = 0; i < numSamples; ++i)
         {
-            const float external = voice[i];
-
-            // Two seconds of digital silence mean no voice is connected (pauses between phrases are shorter)
-            if (std::abs(external) > 1e-6f) silentCount = 0;
-            else if (silentCount < silentLimit) ++silentCount;
-            voicePresent += presentCoef * ((silentCount < silentLimit ? 1.0f : 0.0f) - voicePresent);
-
-            // Without a voice the synth speaks through itself: its own sound is the modulator
-            const float v = external * voicePresent + 0.5f * (left[i] + right[i]) * (1.0f - voicePresent);
+            const float synth = 0.5f * (left[i] + right[i]);
             const float wetMix = mix;
 
-            if (p.tableCarrier && p.pitchMode == 0)
+            if (p.pitchMode == 0)
             {
-                tracker.push(v);
+                tracker.push(synth);
                 if (tracker.getVersion() != lastTrackerVersion) updateAutoPitch(p);
             }
+
+            // SYNTH: the table is the modulator, the synth speaks with its formants; TABLE: the other way round
+            const float table = carrier.process();
+            const float v = p.tableCarrier ? synth : table;
 
             // Consonant detector: how much of the voice sits above 4 kHz
             const float hiss = hissF[1].process(hissF[0].process(v));
@@ -217,7 +206,7 @@ namespace wv
 
             float carrierL, carrierR;
             if (p.tableCarrier)
-                carrierL = carrierR = carrier.process() + noise;
+                carrierL = carrierR = table + noise;
             else
             {
                 carrierL = left[i] + noise;
@@ -241,8 +230,8 @@ namespace wv
             wetL *= bankGain;
             wetR *= bankGain;
 
-            // Keep the vocoder at the loudness of the voice whatever the carrier is
-            const float voicePower = p.freeze ? inPower : v * v;
+            // Keep the vocoder at the loudness of the synth whatever speaks: silent when the synth is
+            const float voicePower = p.freeze ? inPower : synth * synth;
             inPower += levelCoef * (voicePower - inPower);
             const float wetMean = 0.5f * (wetL * wetL + wetR * wetR);
             wetPower += levelCoef * (wetMean - wetPower);

@@ -33,8 +33,8 @@ namespace vital {
         kNumInputs
       };
 
-      // Corpuscular: sidechain is the audio input the vocoder listens to (may be null: then it hears silence)
-      ReorderableEffectChain(const Output* beats_per_second, const Output* keytrack, const Output* sidechain = nullptr);
+      // Corpuscular: keytrack gives the vocoder the last played note
+      ReorderableEffectChain(const Output* beats_per_second, const Output* keytrack);
 
       virtual void process(int num_samples) override;
       virtual void hardReset() override;
@@ -52,8 +52,6 @@ namespace vital {
       const StereoMemory* equalizer_memory_;
       const Output* beats_per_second_;
       const Output* keytrack_;
-      const Output* sidechain_;
-      std::shared_ptr<Output> silence_;
       SynthModule* effects_[constants::kNumEffects];
       Value* effects_on_[constants::kNumEffects];
       int effect_order_[constants::kNumEffects];

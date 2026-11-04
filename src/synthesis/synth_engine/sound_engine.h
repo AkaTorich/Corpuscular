@@ -99,9 +99,6 @@ namespace vital {
 
       void checkOversampling();
 
-      // Corpuscular: the audio input for the vocoder, (left, right, left, right) per sample at the base rate.
-      // Called before process(); a block without it hears silence.
-      void setSidechainInput(const poly_float* audio, int num_samples);
       VocoderModule* getVocoder();
 
       // Corpuscular: "arp_pattern_length" with its modulation, as of the last processed block (the ARP sequencer reads it)
@@ -111,10 +108,6 @@ namespace vital {
     private:
       void setOversamplingAmount(int oversampling_amount, int sample_rate);
 
-      std::unique_ptr<Output> sidechain_;
-      int sidechain_oversample_;
-      bool sidechain_written_;
-    
       SynthVoiceHandler* voice_handler_;
       Output* arp_pattern_length_ = nullptr;
       Output* arp_pattern_start_ = nullptr;

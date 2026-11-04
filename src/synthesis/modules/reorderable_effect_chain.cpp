@@ -65,13 +65,9 @@ namespace vital {
       Output input_;
   };
 
-  ReorderableEffectChain::ReorderableEffectChain(const Output* beats_per_second, const Output* keytrack,
-                                                 const Output* sidechain) :
+  ReorderableEffectChain::ReorderableEffectChain(const Output* beats_per_second, const Output* keytrack) :
       vital::SynthModule(kNumInputs, 1), equalizer_memory_(nullptr),
-      beats_per_second_(beats_per_second), keytrack_(keytrack), sidechain_(sidechain),
-      silence_(std::make_shared<Output>(kMaxBufferSize, 16)), last_order_(0.0f) {
-    if (sidechain_ == nullptr)
-      sidechain_ = silence_.get();
+      beats_per_second_(beats_per_second), keytrack_(keytrack), last_order_(0.0f) {
     for (int i = 0; i < constants::kNumEffects; ++i) {
       SynthModule* effect_module = createEffectModule(i);
       VITAL_ASSERT(effect_module);
@@ -110,7 +106,7 @@ namespace vital {
       case constants::kReverb:
         return new ReverbModule();
       case constants::kVocoder:
-        return new VocoderModule(sidechain_, keytrack_);
+        return new VocoderModule(keytrack_);
       default:
         return nullptr;
     }

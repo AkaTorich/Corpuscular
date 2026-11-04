@@ -281,7 +281,6 @@ class SynthApplication : public JUCEApplication {
         std::cout << "  -l, --length                        Not length to play (with --render)." << newLine;
         std::cout << "  -b, --bpm                           BPM to play (with --render)." << newLine;
         std::cout << "  --images                            Render oscilloscope images (with --render)." << newLine;
-        std::cout << "  --voice <file>                      Voice for the vocoder (with --render)." << newLine;
         std::cout << "  --generate                          Build the generated library now (--presets N, --wavetables N, --lfos N, --seed)." << newLine << newLine;
         quit();
       }
@@ -502,24 +501,6 @@ class SynthApplication : public JUCEApplication {
         String bpm_setting = getArgumentValue(args, "-b", "--bpm");
         if (!bpm_setting.isEmpty())
           bpm = bpm_setting.getIntValue();
-
-        // --voice file.wav: a voice for the vocoder (mono mix, played in a loop)
-        String voice_setting = getArgumentValue(args, "--voice", "--voice");
-        if (voice_setting.isNotEmpty()) {
-          AudioFormatManager formats;
-          formats.registerBasicFormats();
-          std::unique_ptr<AudioFormatReader> reader(formats.createReaderFor(File::getCurrentWorkingDirectory().getChildFile(voice_setting)));
-          if (reader) {
-            AudioBuffer<float> audio((int)reader->numChannels, (int)reader->lengthInSamples);
-            reader->read(&audio, 0, (int)reader->lengthInSamples, 0, true, true);
-            std::vector<float> voice(audio.getNumSamples());
-            for (int i = 0; i < audio.getNumSamples(); ++i) {
-              for (int c = 0; c < audio.getNumChannels(); ++c)
-                voice[i] += audio.getSample(c, i) / audio.getNumChannels();
-            }
-            synth.setRenderVoice(std::move(voice));
-          }
-        }
 
         synth.renderAudioToFile(output_file, length, bpm, { note }, images);
         quit();

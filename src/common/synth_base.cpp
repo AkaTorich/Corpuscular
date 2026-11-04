@@ -456,12 +456,6 @@ void SynthBase::renderAudioToFile(File file, float seconds, float bpm, std::vect
       arp_sequencer_.process(midi, kBufferSize, kSampleRate, bpm, false, 0.0);
       processMidi(midi);
     }
-    if (!render_voice_.empty()) {
-      float voice[kBufferSize];
-      for (int i = 0; i < kBufferSize; ++i)
-        voice[i] = render_voice_[(samples + i) % render_voice_.size()];
-      setSidechainInput(voice, voice, kBufferSize);
-    }
     engine_->process(kBufferSize);
     updateMemoryOutput(kBufferSize, engine_->output(0)->buffer);
 
@@ -646,20 +640,6 @@ void SynthBase::processMidi(MidiBuffer& midi_messages, int start_sample, int end
 
 void SynthBase::processKeyboardEvents(MidiBuffer& buffer, int num_samples) {
   midi_manager_->replaceKeyboardMessages(buffer, num_samples);
-}
-
-void SynthBase::setSidechainInput(const float* left, const float* right, int num_samples) {
-  if (left == nullptr || num_samples <= 0)
-    return;
-  if (sidechain_buffer_ == nullptr)
-    sidechain_buffer_ = std::make_unique<vital::poly_float[]>(vital::kMaxBufferSize);
-  if (right == nullptr)
-    right = left;
-
-  num_samples = std::min(num_samples, vital::kMaxBufferSize);
-  for (int i = 0; i < num_samples; ++i)
-    sidechain_buffer_[i] = vital::poly_float(left[i], right[i], left[i], right[i]);
-  engine_->setSidechainInput(sidechain_buffer_.get(), num_samples);
 }
 
 void SynthBase::processArpSequencer(MidiBuffer& midi, int num_samples, double bpm, bool host_playing, double host_ppq) {

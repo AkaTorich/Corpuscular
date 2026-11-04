@@ -21,11 +21,11 @@ namespace wv {
 
 namespace vital {
 
-  // Quantum Vocoder in the effect chain: the voice comes from the engine's sidechain input,
-  // the synth (or a wavetable carrier) speaks it
+  // Quantum Vocoder in the effect chain, no audio input: the synth speaks with a wavetable's formants (SYNTH)
+  // or the wavetable with the synth's (TABLE)
   class VocoderModule : public SynthModule {
     public:
-      VocoderModule(const Output* sidechain, const Output* keytrack);
+      explicit VocoderModule(const Output* keytrack);
       virtual ~VocoderModule();
 
       void init() override;
@@ -41,7 +41,6 @@ namespace vital {
       std::shared_ptr<wv::SynthVocoder> getVocoder() const { return vocoder_; }
 
     protected:
-      const Output* sidechain_;
       const Output* keytrack_;
 
       Value* carrier_;
@@ -68,7 +67,6 @@ namespace vital {
 
       std::shared_ptr<wv::SynthVocoder> vocoder_;
       std::shared_ptr<const wv::Wavetable> table_;
-      std::shared_ptr<std::vector<float>> voice_;
       std::shared_ptr<std::vector<float>> left_;
       std::shared_ptr<std::vector<float>> right_;
 

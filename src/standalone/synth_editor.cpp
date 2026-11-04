@@ -33,13 +33,13 @@ SynthEditor::SynthEditor(bool use_gui) : SynthGuiInterface(this, use_gui) {
   computer_keyboard_ = std::make_unique<SynthComputerKeyboard>(engine_.get(), keyboard_state_.get());
   current_time_ = 0.0;
 
-  // Corpuscular: two inputs for the vocoder's voice (a microphone or a line in)
-  setAudioChannels(vital::kNumChannels, vital::kNumChannels);
+  // Corpuscular: an instrument — no audio input is opened
+  setAudioChannels(0, vital::kNumChannels);
 
   AudioDeviceManager::AudioDeviceSetup setup;
   deviceManager.getAudioDeviceSetup(setup);
   setup.sampleRate = vital::kDefaultSampleRate;
-  deviceManager.initialise(vital::kNumChannels, vital::kNumChannels, nullptr, true, "", &setup);
+  deviceManager.initialise(0, vital::kNumChannels, nullptr, true, "", &setup);
 
   if (deviceManager.getCurrentAudioDevice() == nullptr) {
     const OwnedArray<AudioIODeviceType>& device_types = deviceManager.getAvailableDeviceTypes();
@@ -112,12 +112,6 @@ void SynthEditor::getNextAudioBlock(const AudioSourceChannelInfo& buffer) {
     engine_->correctToTime(current_time_);
 
     processMidi(midi_messages, b, b + current_samples);
-    // The input arrives in the same buffer: hand it to the vocoder before the synth writes over it
-    if (buffer.buffer->getNumChannels() > 0) {
-      int right_channel = std::min(1, buffer.buffer->getNumChannels() - 1);
-      setSidechainInput(buffer.buffer->getReadPointer(0, b), buffer.buffer->getReadPointer(right_channel, b),
-                        current_samples);
-    }
     processAudio(buffer.buffer, vital::kNumChannels, current_samples, b);
     current_time_ += current_samples * sample_time;
   }

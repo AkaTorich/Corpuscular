@@ -41,7 +41,7 @@ class SynthPlugin : public SynthBase, public AudioProcessor, public ValueBridge:
     void prepareToPlay(double sample_rate, int buffer_size) override;
     void releaseResources() override;
     void processBlock(AudioSampleBuffer&, MidiBuffer&) override;
-    // Corpuscular: stereo out, plus an optional input and a sidechain for the vocoder's voice
+    // Corpuscular: an instrument, stereo out and no audio input
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
     AudioProcessorEditor* createEditor() override;
