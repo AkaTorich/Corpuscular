@@ -55,7 +55,8 @@ set(CORPUSCULAR_MELODY_ATOMS_SOURCES
     src/melody_atoms/ArpsyGen.cpp
     src/melody_atoms/ArpTurnaround.cpp
     src/melody_atoms/BassGen.cpp
-    src/melody_atoms/Generators.cpp)
+    src/melody_atoms/Generators.cpp
+    src/melody_atoms/Harmony.cpp)
 list(APPEND CORPUSCULAR_SHARED_SOURCES ${CORPUSCULAR_MELODY_ATOMS_SOURCES})
 
 # QuantumVocoder DSP for the VOCODER effect

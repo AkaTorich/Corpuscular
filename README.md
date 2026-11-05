@@ -13,6 +13,11 @@ Author of the changes: AkaTorich, 2026.
 - **Tabs follow the path of the sound:** ARP → OSC → ROUTE → FILTER → AMP → FX → MOD → MATRIX → SETUP → GEN.
   - ARP — a built-in sequencer with the Melody Atoms generators (PSY ARP, ARP with 4th-bar endings, ARP STYLED,
     BASS, PAD; keys, scale library and the same settings as Melody Atoms). GENERATE works while it plays.
+    HARMONIC (lit) makes the melody follow chords: GENERATE picks CHORDS chords of the scale (4 by default,
+    up to 8) as tension and release: tonic → away (VI, IV, II, III) → dominant (V or VII), and the loop resolves
+    back into the tonic; from 6 chords two phrases, a question and an answer. The chords share the melody
+    equally, the notes on eighths and the long notes become chord notes, quick notes that rub a semitone against
+    the chord move too; the melody starts on the tonic and ends a step from it, BASS starts each chord on its root. The chords are listed under the roll. Code: `src/melody_atoms/Harmony.*`.
     The held note (DAW, MIDI keyboard, on-screen keys) is the tonic; LATCH keeps playing after release.
     In a playing DAW it follows the host tempo and bar grid; otherwise it starts from the pressed note.
     RATE 1/32…1/4 with triplets, OCTAVE, GATE, LENGTH. The piano roll edits everything: add, move, resize,
@@ -115,7 +120,7 @@ Author of the changes: AkaTorich, 2026.
 | `src/generator/lfo_generator.*` | LFO shape generator (16 families) |
 | `src/generator/preset_mutator.*` | SIMILAR: makes a relative of a preset |
 | `src/generator/skin_generator.*` | Genre skins of the library and the 12-harmony acid skins of the GEN tab (palettes, contrast check, side panel colour)
-| `src/melody_atoms/` | Melody Atoms generators (from PresetsGenerators-main\MelodyAtoms), `melody_atoms/scales.json` |
+| `src/melody_atoms/` | Melody Atoms generators (from PresetsGenerators-main\MelodyAtoms), `melody_atoms/scales.json`; `Harmony.*` — HARMONIC: chord progression and the melody laid over it |
 | `src/common/arp_sequencer.*` | ARP sequencer: tonic from the held note, host sync, preset state |
 | `src/interface/editor_sections/arp_section.*`, `arp_piano_roll.*` | ARP tab and its piano roll |
 | `src/unity_build/generator.cpp` | Builds the generator (C++17) |

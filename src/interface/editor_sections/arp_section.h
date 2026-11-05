@@ -17,6 +17,7 @@
 // ARP tab: the Melody Atoms generators write a melody, the piano roll edits it and the built-in sequencer plays it
 // from the note held in the DAW (or on a keyboard) as the tonic. Generating works while it plays.
 // The pattern with all ARP settings can be saved to Documents\Corpuscular\Arps and picked back from there.
+// With HARMONIC on, GENERATE first picks CHORDS chords of the scale (4 or more) and lays the melody over them.
 class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Timer, public SaveSection::Listener,
                    public FileDragAndDropTarget {
   public:
@@ -47,7 +48,7 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
 
   private:
     enum Control {
-      kOn, kLatch, kMode, kKey, kScaleGroup, kScale, kParam1, kParam2, kParam3, kParam4, kGenerate,
+      kOn, kLatch, kMode, kKey, kScaleGroup, kScale, kParam1, kParam2, kParam3, kParam4, kHarmonic, kChords, kGenerate,
       kRate, kOctave, kGate, kBars, kZoomTimeOut, kZoomTimeIn, kZoomNotesOut, kZoomNotesIn, kFit,
       kUndo, kRedo, kClear, kSave, kMidi, kSavedArp, kNumControls
     };
@@ -84,6 +85,7 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     void clickButton(int control);
 
     void setModeDefaults();
+    bool hasHarmony() const { return mode_ != kPad; }   // PAD already plays chords
     int paramMin(int param) const;
     int paramMax(int param) const;
     StringArray paramNames(int param) const;
@@ -98,6 +100,8 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     int scale_group_;
     int scale_;
     int params_[4];
+    bool harmonic_;           // HARMONIC: the melody follows a chord progression
+    int chord_count_;         // CHORDS: how many chords the melody goes through
     String info_;
     File current_arp_file_;
     bool midi_pressed_;

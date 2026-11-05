@@ -14,6 +14,7 @@
 #include "ArpsyGen.h"
 #include "BassGen.h"
 #include "Generators.h"
+#include "Harmony.h"
 #include "MusicData.h"
 #include "fonts.h"
 #include "full_interface.h"
@@ -39,12 +40,16 @@ namespace {
   const int kArpDefaultKey = 21;   // Am
 
   // Share of the row each control takes; row A is the generator, row B the player and the roll tools
-  const float kArpRowA[] = { 0.055f, 0.065f, 0.10f, 0.065f, 0.12f, 0.15f, 0.07f, 0.065f, 0.07f, 0.13f, 0.11f };
+  const float kArpRowA[] = { 0.05f, 0.06f, 0.085f, 0.06f, 0.10f, 0.11f, 0.065f, 0.06f, 0.065f, 0.10f,
+                             0.08f, 0.065f, 0.10f };
   const float kArpRowB[] = { 0.08f, 0.08f, 0.08f, 0.075f, 0.055f, 0.055f, 0.06f, 0.06f, 0.045f, 0.06f, 0.06f, 0.06f,
                              0.055f, 0.065f, 0.11f };
   // Clicking the middle of a list control opens the list, its sides step through it
   constexpr float kArpListSide = 0.22f;
-  constexpr int kArpRowACount = 11;
+  constexpr int kArpRowACount = 13;
+  // HARMONIC: at least 4 chords per melody, more when asked
+  constexpr int kArpMinChords = 4;
+  constexpr int kArpMaxChords = 8;
 
   mg::MusicData& arpMusicData() {
     static mg::MusicData data;
@@ -57,7 +62,8 @@ namespace {
 }
 
 ArpSection::ArpSection() : SynthSection("ARP"), loaded_(false), mode_(kPsyArp), key_(kArpDefaultKey),
-                           scale_group_(0), scale_(1), midi_pressed_(false), midi_drop_hover_(false) {
+                           scale_group_(0), scale_(1), harmonic_(false), chord_count_(kArpMinChords),
+                           midi_pressed_(false), midi_drop_hover_(false) {
   for (int i = 0; i < 4; ++i)
     params_[i] = kArpParamDefaults[kPsyArp][i];
 
@@ -106,6 +112,8 @@ void ArpSection::loadFromSequencer() {
         params_[i] = jlimit(paramMin(i), std::max(paramMin(i), paramMax(i)), ui["params"][i].get<int>());
     }
     info_ = ui.count("info") ? String(ui["info"].get<std::string>()) : String();
+    harmonic_ = ui.count("harmonic") ? ui["harmonic"].get<bool>() : false;
+    chord_count_ = jlimit(kArpMinChords, kArpMaxChords, ui.count("chords") ? ui["chords"].get<int>() : kArpMinChords);
   }
 
   bool first_load = !loaded_;
@@ -127,6 +135,8 @@ void ArpSection::saveUiState() {
   ui["group"] = scale_group_;
   ui["scale"] = scale_;
   ui["params"] = { params_[0], params_[1], params_[2], params_[3] };
+  ui["harmonic"] = harmonic_;
+  ui["chords"] = chord_count_;
   ui["info"] = info_.toStdString();
   seq->setUiState(ui);
 }
@@ -232,6 +242,19 @@ void ArpSection::generate() {
     clip = mg::renderClip(mg::Mode::Pad, info);
   }
 
+  // HARMONIC: the chords share the melody equally, the melody is bent onto them
+  if (harmonic_ && hasHarmony() && !clip.isEmpty()) {
+    int clip_end = 0;
+    for (const mg::NoteEvent& event : clip)
+      clip_end = std::max(clip_end, event.startSixteenth + std::max(1, event.lengthSixteenth));
+    int total = std::max(16, ((clip_end + 15) / 16) * 16);
+    StringArray chords = mg::harmonyProgression(tonality, scale, chord_count_, random);
+    if (!chords.isEmpty()) {
+      clip = mg::fitToChords(clip, chords, total, mode_ == kBass);
+      info.insert(0, "Chords: " + chords.joinIntoString(" "));
+    }
+  }
+
   std::vector<ArpSequencer::Note> notes;
   int end = 0;
   for (const mg::NoteEvent& event : clip) {
@@ -288,7 +311,7 @@ Rectangle<float> ArpSection::infoBounds() const {
 }
 
 bool ArpSection::isButton(int control) const {
-  return control == kOn || control == kLatch || control == kGenerate ||
+  return control == kOn || control == kLatch || control == kGenerate || (control == kHarmonic && hasHarmony()) ||
          (control >= kZoomTimeOut && control != kSavedArp);
 }
 
@@ -300,6 +323,8 @@ bool ArpSection::isLit(int control) const {
     return seq && seq->isLatched();
   if (control == kGenerate)
     return true;
+  if (control == kHarmonic)
+    return harmonic_;
   if (control == kUndo)
     return piano_roll_.canUndo();
   if (control == kRedo)
@@ -314,6 +339,7 @@ String ArpSection::controlTitle(int control) const {
     case kScaleGroup: return "SCALE GROUP";
     case kScale: return "SCALE";
     case kParam1: case kParam2: case kParam3: case kParam4: return kArpParamTitles[mode_][control - kParam1];
+    case kChords: return hasHarmony() ? "CHORDS" : "";
     case kRate: return "RATE";
     case kOctave: return "OCTAVE";
     case kGate: return "GATE";
@@ -330,6 +356,8 @@ String ArpSection::controlValue(int control) const {
     case kOn: return "ON";
     case kLatch: return "LATCH";
     case kGenerate: return "GENERATE";
+    case kHarmonic: return "HARMONIC";
+    case kChords: return String(chord_count_);
     case kZoomTimeOut: return "TIME -";
     case kZoomTimeIn: return "TIME +";
     case kZoomNotesOut: return "NOTES -";
@@ -401,6 +429,9 @@ void ArpSection::stepControl(int control, int delta) {
         params_[param] = low + arpWrap(params_[param] - low + delta, high - low + 1);
       break;
     }
+    case kChords:
+      chord_count_ = kArpMinChords + arpWrap(chord_count_ - kArpMinChords + delta, kArpMaxChords - kArpMinChords + 1);
+      break;
     case kRate:
       if (seq)
         seq->setRate(jlimit(0, ArpSequencer::kNumRates - 1, seq->getRate() + delta));
@@ -438,6 +469,10 @@ void ArpSection::clickButton(int control) {
       break;
     case kGenerate:
       generate();
+      return;
+    case kHarmonic:
+      harmonic_ = !harmonic_;
+      saveUiState();
       return;
     case kZoomTimeOut: piano_roll_.zoomTime(1.5f); break;
     case kZoomTimeIn: piano_roll_.zoomTime(1.0f / 1.5f); break;

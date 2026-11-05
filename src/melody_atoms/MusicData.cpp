@@ -77,27 +77,6 @@ namespace
         return isSharp ? sharp[n] : flat[n];
     }
 
-    // Полутоны от ступени-римской цифры (порт GetSemitonesFromDegree, упрощённо)
-    int semitonesFromDegree(const juce::String& degree)
-    {
-        auto d = degree.toLowerCase().trimCharactersAtEnd(juce::String::fromUTF8("°+"));
-        int accidental = 0;
-        if (d.startsWith("b")) { accidental = -1; d = d.substring(1); }
-        else if (d.startsWith("#")) { accidental = 1; d = d.substring(1); }
-
-        int semis;
-        if      (d == "i")   semis = 0;
-        else if (d == "ii")  semis = 2;
-        else if (d == "iii") semis = 4;
-        else if (d == "iv")  semis = 5;
-        else if (d == "v")   semis = 7;
-        else if (d == "vi")  semis = 9;
-        else if (d == "vii") semis = 11;
-        else return -1;
-
-        return ((semis + accidental) % 12 + 12) % 12;
-    }
-
     juce::String romanNumeral(int number, bool isMinor)
     {
         static const char* maj[] = {"I","II","III","IV","V","VI","VII"};
@@ -105,20 +84,6 @@ namespace
         if (number >= 1 && number <= 7)
             return isMinor ? min[number - 1] : maj[number - 1];
         return "I";
-    }
-
-    // Имя аккорда (порт GetChordName)
-    juce::String chordName(const juce::String& tonality, const juce::String& degree,
-                           const juce::String& quality)
-    {
-        juce::String root = tonality.endsWith("m") ? tonality.dropLastCharacters(1) : tonality;
-        int semis = semitonesFromDegree(degree);
-        if (semis < 0) return {};
-
-        juce::String name = transpose(root, semis);
-        if (quality == "maj") {}
-        else                  name += quality; // m, dim, aug, sus4, add9, 7, maj7, m7, dim7, m7b5, m9, maj9, 9, aug7, 5
-        return name;
     }
 
     // Качества и ступени аккордов из интервалов гаммы (порт GenerateChordsFromIntervals)
@@ -238,11 +203,19 @@ juce::StringArray MusicData::chordsForScale(const juce::String& tonality, const 
 {
     juce::StringArray degrees, qualities, result;
     deriveChords(scale.steps, degrees, qualities);
-    for (int i = 0; i < degrees.size(); ++i)
+
+    // The root of each chord is the scale's own note on that degree (Corpuscular: the roman numerals
+    // counted major-scale steps, so a minor scale got C#, F#, G# in A minor)
+    juce::String root = tonality.endsWith("m") ? tonality.dropLastCharacters(1) : tonality;
+    int offset = 0;
+    for (int i = 0; i < qualities.size(); ++i)
     {
-        auto name = chordName(tonality, degrees[i], qualities[i]);
-        if (name.isNotEmpty())
-            result.add(name);
+        juce::String name = transpose(root, offset);
+        if (qualities[i] != "maj")
+            name += qualities[i];
+        result.add(name);
+        if (i < scale.steps.size())
+            offset += scale.steps[i];
     }
     return result;
 }
