@@ -9,6 +9,8 @@
 
 #include "arp_section.h"
 
+#include "arp_dynamics.h"
+
 #include "ArpGen.h"
 #include "ArpTurnaround.h"
 #include "ArpsyGen.h"
@@ -42,14 +44,17 @@ namespace {
   // Share of the row each control takes; row A is the generator, row B the player and the roll tools
   const float kArpRowA[] = { 0.05f, 0.06f, 0.085f, 0.06f, 0.10f, 0.11f, 0.065f, 0.06f, 0.065f, 0.10f,
                              0.08f, 0.065f, 0.10f };
-  const float kArpRowB[] = { 0.08f, 0.08f, 0.08f, 0.075f, 0.055f, 0.055f, 0.06f, 0.06f, 0.045f, 0.06f, 0.06f, 0.06f,
-                             0.055f, 0.065f, 0.11f };
+  const float kArpRowB[] = { 0.075f, 0.075f, 0.075f, 0.08f, 0.07f, 0.05f, 0.05f, 0.055f, 0.055f, 0.045f, 0.055f,
+                             0.055f, 0.055f, 0.05f, 0.06f, 0.095f };
   // Clicking the middle of a list control opens the list, its sides step through it
   constexpr float kArpListSide = 0.22f;
   constexpr int kArpRowACount = 13;
   // HARMONIC: at least 4 chords per melody, more when asked
   constexpr int kArpMinChords = 4;
   constexpr int kArpMaxChords = 8;
+  // VELOCITY steps by 10 %
+  constexpr int kArpDefaultDynamics = 60;
+  constexpr int kArpDynamicsStep = 10;
 
   mg::MusicData& arpMusicData() {
     static mg::MusicData data;
@@ -63,6 +68,7 @@ namespace {
 
 ArpSection::ArpSection() : SynthSection("ARP"), loaded_(false), mode_(kPsyArp), key_(kArpDefaultKey),
                            scale_group_(0), scale_(1), harmonic_(false), chord_count_(kArpMinChords),
+                           dynamics_(kArpDefaultDynamics), pattern_chords_(0),
                            midi_pressed_(false), midi_drop_hover_(false) {
   for (int i = 0; i < 4; ++i)
     params_[i] = kArpParamDefaults[kPsyArp][i];
@@ -114,6 +120,8 @@ void ArpSection::loadFromSequencer() {
     info_ = ui.count("info") ? String(ui["info"].get<std::string>()) : String();
     harmonic_ = ui.count("harmonic") ? ui["harmonic"].get<bool>() : false;
     chord_count_ = jlimit(kArpMinChords, kArpMaxChords, ui.count("chords") ? ui["chords"].get<int>() : kArpMinChords);
+    dynamics_ = jlimit(0, 100, ui.count("dynamics") ? ui["dynamics"].get<int>() : kArpDefaultDynamics);
+    pattern_chords_ = jlimit(0, kArpMaxChords, ui.count("patternChords") ? ui["patternChords"].get<int>() : 0);
   }
 
   bool first_load = !loaded_;
@@ -137,6 +145,8 @@ void ArpSection::saveUiState() {
   ui["params"] = { params_[0], params_[1], params_[2], params_[3] };
   ui["harmonic"] = harmonic_;
   ui["chords"] = chord_count_;
+  ui["dynamics"] = dynamics_;
+  ui["patternChords"] = pattern_chords_;
   ui["info"] = info_.toStdString();
   seq->setUiState(ui);
 }
@@ -243,6 +253,7 @@ void ArpSection::generate() {
   }
 
   // HARMONIC: the chords share the melody equally, the melody is bent onto them
+  pattern_chords_ = 0;
   if (harmonic_ && hasHarmony() && !clip.isEmpty()) {
     int clip_end = 0;
     for (const mg::NoteEvent& event : clip)
@@ -251,6 +262,7 @@ void ArpSection::generate() {
     StringArray chords = mg::harmonyProgression(tonality, scale, chord_count_, random);
     if (!chords.isEmpty()) {
       clip = mg::fitToChords(clip, chords, total, mode_ == kBass);
+      pattern_chords_ = chords.size();
       info.insert(0, "Chords: " + chords.joinIntoString(" "));
     }
   }
@@ -265,6 +277,7 @@ void ArpSection::generate() {
     return;
 
   int length = std::max(16, ((end + 15) / 16) * 16);
+  arp_dynamics::apply(notes, length, dynamics_ / 100.0f, pattern_chords_);
   int root = 60 + key_ % 12;
   info_ = info.joinIntoString("  ");
   midi_status_.clear();
@@ -276,6 +289,16 @@ void ArpSection::generate() {
     seq->setPattern(notes, length, root);
   saveUiState();
   repaintBackground();
+}
+
+// VELOCITY turned: the strength of the notes is laid anew (UNDO brings the old one back)
+void ArpSection::applyDynamics() {
+  std::vector<ArpSequencer::Note> notes = piano_roll_.getNotes();
+  if (notes.empty())
+    return;
+  arp_dynamics::apply(notes, piano_roll_.getLength(), dynamics_ / 100.0f, pattern_chords_);
+  piano_roll_.setPattern(notes, piano_roll_.getLength(), true);
+  pushPattern();
 }
 
 // Controls -------------------------------------------------------------------------------------------------------
@@ -343,6 +366,7 @@ String ArpSection::controlTitle(int control) const {
     case kRate: return "RATE";
     case kOctave: return "OCTAVE";
     case kGate: return "GATE";
+    case kVelocity: return "VELOCITY";
     case kBars: return "LENGTH";
     case kSavedArp: return "SAVED ARP";
     default: return {};
@@ -392,6 +416,7 @@ String ArpSection::controlValue(int control) const {
       return octave > 0 ? "+" + String(octave) : String(octave);
     }
     case kGate: return seq ? String(roundToInt(seq->getGate() * 100.0f)) + "%" : String();
+    case kVelocity: return dynamics_ == 0 ? String("OFF") : String(dynamics_) + "%";
     case kBars: {
       int length = piano_roll_.getLength();
       return length % 16 == 0 ? String(length / 16) + (length == 16 ? " bar" : " bars") : String(length) + " steps";
@@ -443,6 +468,10 @@ void ArpSection::stepControl(int control, int delta) {
     case kGate:
       if (seq)
         seq->setGate(seq->getGate() + delta * 0.05f);
+      break;
+    case kVelocity:
+      dynamics_ = jlimit(0, 100, dynamics_ + delta * kArpDynamicsStep);
+      applyDynamics();
       break;
     case kBars: {
       int length = piano_roll_.getLength();

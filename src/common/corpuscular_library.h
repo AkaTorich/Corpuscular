@@ -23,7 +23,7 @@ namespace corpuscular {
     int skins = 16;       // one per genre; more than the genres repeats nothing
   };
 
-  // Switches the vocoder on in a generated preset with musical settings (SYNTH or TABLE carrier, style Vocal)
+  // Switches the vocoder on in a generated preset with musical settings (the table as carrier, style Vocal)
   void addVocoder(nlohmann::json& preset, Random& random);
 
   // Progress of a build: the part being made, files done and files to make over all parts

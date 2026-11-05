@@ -55,10 +55,9 @@ namespace corpuscular {
     auto between = [&random](float low, float high) { return low + (high - low) * random.nextFloat(); };
 
     json& settings = preset["settings"];
-    bool table = random.nextBool();
     float pitch_roll = random.nextFloat();
     settings["vocoder_on"] = 1.0f;
-    settings["vocoder_carrier"] = table ? 1.0f : 0.0f;
+    settings["vocoder_carrier"] = 1.0f;
     settings["vocoder_pitch_mode"] = pitch_roll < 0.5f ? 0.0f : (pitch_roll < 0.85f ? 2.0f : 1.0f);
     settings["vocoder_note"] = (float)(36 + random.nextInt(37));
     settings["vocoder_octave"] = (float)(random.nextInt(3) - 1);

@@ -19,11 +19,12 @@ namespace {
   constexpr float kRollMinRowsVisible = 8.0f;
   constexpr float kRollMaxRowsVisible = 88.0f;
   constexpr float kRollResizeEdge = 7.0f;
+  constexpr int kRollDefaultVelocity = 100;
   const char* kRollNoteNames[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 }
 
 ArpPianoRoll::ArpPianoRoll() : image_component_("arp_piano_roll"), listener_(nullptr), length_(16),
-                               last_note_length_(1), first_step_(0.0f), steps_visible_(32.0f), low_pitch_(48.0f),
+                               last_note_length_(1), last_velocity_(kRollDefaultVelocity), first_step_(0.0f), steps_visible_(32.0f), low_pitch_(48.0f),
                                rows_visible_(30.0f), playhead_(-1.0f), modulated_length_(-1), modulated_start_(0), tonic_pitch_class_(0),
                                drag_mode_(kNone), length_origin_(16), drag_changed_(false) {
   image_component_.setComponent(this);
@@ -88,7 +89,9 @@ void ArpPianoRoll::setPlayhead(float step) {
 float ArpPianoRoll::keyWidth() const { return std::max(30.0f, getWidth() * 0.045f); }
 float ArpPianoRoll::rulerHeight() const { return std::max(14.0f, getHeight() * 0.045f); }
 float ArpPianoRoll::stepWidth() const { return (getWidth() - keyWidth()) / steps_visible_; }
-float ArpPianoRoll::rowHeight() const { return (getHeight() - rulerHeight()) / rows_visible_; }
+float ArpPianoRoll::laneHeight() const { return std::max(36.0f, getHeight() * 0.17f); }
+float ArpPianoRoll::gridBottom() const { return getHeight() - laneHeight(); }
+float ArpPianoRoll::rowHeight() const { return (gridBottom() - rulerHeight()) / rows_visible_; }
 float ArpPianoRoll::stepToX(float step) const { return keyWidth() + (step - first_step_) * stepWidth(); }
 
 float ArpPianoRoll::pitchToY(int pitch) const {
@@ -120,6 +123,50 @@ bool ArpPianoRoll::onResizeEdge(int index, Point<float> point) const {
   Rectangle<float> bounds = noteBounds(notes_[index]);
   float edge = std::min(kRollResizeEdge, bounds.getWidth() * 0.35f);
   return point.x >= bounds.getRight() - edge;
+}
+
+bool ArpPianoRoll::inLane(Point<float> point) const {
+  return point.y >= gridBottom() && point.x >= keyWidth();
+}
+
+// The lane's top is 127, its bottom 1, with a little room at both edges
+int ArpPianoRoll::laneToVelocity(float y) const {
+  float top = gridBottom() + 4.0f;
+  float bottom = (float)getHeight() - 3.0f;
+  float share = (bottom - y) / std::max(1.0f, bottom - top);
+  return jlimit(1, 127, roundToInt(1.0f + share * 126.0f));
+}
+
+// Sets the strength of the notes whose bars are under the mouse
+void ArpPianoRoll::setVelocityAt(Point<float> point) {
+  float step = xToStep(point.x);
+  float slack = std::max(0.5f, 4.0f / stepWidth());
+  std::vector<int> under;
+  bool any_selected = false;
+  for (int i = 0; i < (int)notes_.size(); ++i) {
+    float start = (float)notes_[i].start;
+    if (step >= start - slack && step < start + std::max(1.0f, slack)) {
+      under.push_back(i);
+      any_selected = any_selected || (i < (int)selected_.size() && selected_[i]);
+    }
+  }
+
+  int velocity = laneToVelocity(point.y);
+  bool changed = false;
+  for (int i : under) {
+    if (any_selected && !selected_[i])
+      continue;
+    if (notes_[i].velocity != velocity) {
+      notes_[i].velocity = velocity;
+      changed = true;
+    }
+  }
+  if (!under.empty())
+    last_velocity_ = velocity;
+  if (changed) {
+    drag_changed_ = true;
+    edited();
+  }
 }
 
 bool ArpPianoRoll::inScale(int pitch) const {
@@ -291,6 +338,13 @@ void ArpPianoRoll::mouseDown(const MouseEvent& e) {
   if (point.x < keyWidth())
     return;
 
+  if (inLane(point)) {
+    pushUndo();
+    drag_mode_ = kVelocity;
+    setVelocityAt(point);
+    return;
+  }
+
   int index = noteAt(point);
   if (e.mods.isPopupMenu()) {
     if (index >= 0) {
@@ -312,6 +366,7 @@ void ArpPianoRoll::mouseDown(const MouseEvent& e) {
     drag_mode_ = onResizeEdge(index, point) ? kResize : kMove;
     drag_origin_ = notes_;
     last_note_length_ = notes_[index].length;
+    last_velocity_ = notes_[index].velocity;
     redraw();
     return;
   }
@@ -328,7 +383,7 @@ void ArpPianoRoll::mouseDown(const MouseEvent& e) {
   note.start = jlimit(0, ArpSequencer::kMaxSteps - 1, (int)std::floor(xToStep(point.x)));
   note.midi = jlimit(0, 127, yToPitch(point.y));
   note.length = last_note_length_;
-  note.velocity = 100;
+  note.velocity = last_velocity_;
   notes_.push_back(note);
   selected_.assign(notes_.size(), false);
   selected_.back() = true;
@@ -347,6 +402,11 @@ void ArpPianoRoll::mouseDrag(const MouseEvent& e) {
       length_ = length;
       edited();
     }
+    return;
+  }
+
+  if (drag_mode_ == kVelocity) {
+    setVelocityAt(Point<float>(point.x, jlimit(gridBottom(), (float)getHeight(), point.y)));
     return;
   }
 
@@ -389,7 +449,7 @@ void ArpPianoRoll::mouseDrag(const MouseEvent& e) {
 
 void ArpPianoRoll::mouseUp(const MouseEvent& e) {
   // A click on a note that moved nothing leaves no undo step behind
-  if ((drag_mode_ == kMove || drag_mode_ == kResize) && !drag_changed_ && !undo_.empty())
+  if ((drag_mode_ == kMove || drag_mode_ == kResize || drag_mode_ == kVelocity) && !drag_changed_ && !undo_.empty())
     undo_.pop_back();
   if (drag_mode_ == kLength && length_ == length_origin_ && !undo_.empty())
     undo_.pop_back();
@@ -399,6 +459,8 @@ void ArpPianoRoll::mouseUp(const MouseEvent& e) {
 }
 
 void ArpPianoRoll::mouseDoubleClick(const MouseEvent& e) {
+  if (inLane(e.position))
+    return;
   int index = noteAt(e.position);
   if (index < 0 || e.mods.isShiftDown())
     return;
@@ -409,8 +471,10 @@ void ArpPianoRoll::mouseDoubleClick(const MouseEvent& e) {
 }
 
 void ArpPianoRoll::mouseMove(const MouseEvent& e) {
-  int index = noteAt(e.position);
-  if (e.position.y < rulerHeight())
+  int index = inLane(e.position) ? -1 : noteAt(e.position);
+  if (inLane(e.position))
+    setMouseCursor(MouseCursor::UpDownResizeCursor);
+  else if (e.position.y < rulerHeight())
     setMouseCursor(MouseCursor::LeftRightResizeCursor);
   else if (onResizeEdge(index, e.position))
     setMouseCursor(MouseCursor::RightEdgeResizeCursor);
@@ -527,7 +591,8 @@ void ArpPianoRoll::paint(Graphics& g) {
   Colour note_colour = findColour(Skin::kRotaryArc, true);
 
   float width = (float)getWidth();
-  float height = (float)getHeight();
+  float full_height = (float)getHeight();
+  float height = gridBottom();
   float key_width = keyWidth();
   float ruler = rulerHeight();
   float step_width = stepWidth();
@@ -620,6 +685,49 @@ void ArpPianoRoll::paint(Graphics& g) {
     }
   }
 
+  // VELOCITY lane: a bar per note, a faint line at 100
+  {
+    float lane_top = height;
+    g.setColour(background.darker(0.25f));
+    g.fillRect(key_width, lane_top, width - key_width, full_height - lane_top);
+    for (int step = first; step <= last; ++step) {
+      float x = stepToX((float)step);
+      if (x < key_width || step % (thin ? 16 : 4) != 0)
+        continue;
+      g.setColour(line.withMultipliedAlpha(step % 16 == 0 ? 0.8f : 0.3f));
+      g.fillRect(x, lane_top, step % 16 == 0 ? 2.0f : 1.0f, full_height - lane_top);
+    }
+    float bar_top = lane_top + 4.0f;
+    float bar_bottom = full_height - 3.0f;
+    g.setColour(line.withMultipliedAlpha(0.35f));
+    g.fillRect(key_width, bar_bottom - (bar_bottom - bar_top) * 99.0f / 126.0f, width - key_width, 1.0f);
+    float bar_width = jlimit(3.0f, 10.0f, step_width * 0.45f);
+    for (size_t i = 0; i < notes_.size(); ++i) {
+      float x = stepToX((float)notes_[i].start) + 1.0f;
+      if (x + bar_width < key_width || x > width)
+        continue;
+      bool selected = i < selected_.size() && selected_[i];
+      bool past_end = notes_[i].start >= length_;
+      float top = bar_bottom - (bar_bottom - bar_top) * (notes_[i].velocity - 1) / 126.0f;
+      Colour fill = past_end ? note_colour.withMultipliedAlpha(0.3f) : note_colour.withMultipliedAlpha(0.85f);
+      g.setColour(selected ? fill.brighter(0.5f) : fill);
+      g.fillRect(x, top, bar_width, bar_bottom - top);
+      g.fillEllipse(x + bar_width * 0.5f - 3.0f, top - 3.0f, 6.0f, 6.0f);
+    }
+    if (end_x < width) {
+      g.setColour(Colours::black.withAlpha(0.45f));
+      g.fillRect(std::max(key_width, end_x), lane_top, width - std::max(key_width, end_x), full_height - lane_top);
+    }
+    g.setColour(body);
+    g.fillRect(0.0f, lane_top, key_width, full_height - lane_top);
+    g.setColour(text.withAlpha(0.75f));
+    g.setFont(Fonts::instance()->proportional_regular().withPointHeight(std::min(11.0f, key_width * 0.3f)));
+    g.drawText("VEL", Rectangle<float>(0.0f, lane_top, key_width - 4.0f, full_height - lane_top),
+               Justification::centredRight, false);
+    g.setColour(line);
+    g.fillRect(0.0f, lane_top, width, 1.0f);
+  }
+
   // Ruler: bar numbers and the pattern end marker
   g.setColour(body);
   g.fillRect(0.0f, 0.0f, width, ruler);
@@ -636,7 +744,7 @@ void ArpPianoRoll::paint(Graphics& g) {
     Path marker;
     marker.addTriangle(end_x - ruler * 0.45f, 0.0f, end_x, ruler, end_x, 0.0f);
     g.fillPath(marker);
-    g.fillRect(end_x - 1.0f, 0.0f, 2.0f, height);
+    g.fillRect(end_x - 1.0f, 0.0f, 2.0f, full_height);
   }
   // The start as a modulation moves it
   if (modulated_start_ > 0) {
@@ -646,7 +754,7 @@ void ArpPianoRoll::paint(Graphics& g) {
       Path start_marker;
       start_marker.addTriangle(start_x, 0.0f, start_x, ruler, start_x + ruler * 0.45f, 0.0f);
       g.fillPath(start_marker);
-      g.fillRect(start_x - 1.0f, 0.0f, 2.0f, height);
+      g.fillRect(start_x - 1.0f, 0.0f, 2.0f, full_height);
     }
   }
   // The end as a modulation moves it
@@ -657,7 +765,7 @@ void ArpPianoRoll::paint(Graphics& g) {
       Path mod_marker;
       mod_marker.addTriangle(mod_x - ruler * 0.45f, 0.0f, mod_x, ruler, mod_x, 0.0f);
       g.fillPath(mod_marker);
-      g.fillRect(mod_x - 1.0f, 0.0f, 2.0f, height);
+      g.fillRect(mod_x - 1.0f, 0.0f, 2.0f, full_height);
     }
   }
   g.setColour(line);

@@ -48,7 +48,6 @@ class VocoderSection : public SynthSection, public PresetSelector::Listener {
     File current_file_;
 
     std::unique_ptr<SynthButton> on_;
-    std::unique_ptr<TextSelector> carrier_;
     std::unique_ptr<TextSelector> pitch_mode_;
     std::unique_ptr<SynthSlider> note_;
     std::unique_ptr<SynthSlider> octave_;

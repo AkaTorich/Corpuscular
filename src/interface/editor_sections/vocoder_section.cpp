@@ -103,7 +103,7 @@ class VocoderTableViewer : public OpenGlLineRenderer {
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocoderTableViewer)
 };
 
-// Live band levels of the modulator (the table, or the synth with CARRIER TABLE), one bar per band
+// Live band levels of the synth's sound (the modulator; the table is the carrier), one bar per band
 class VocoderBandViewer : public BarRenderer {
   public:
     static constexpr float kRangeDb = 60.0f;
@@ -156,12 +156,6 @@ class VocoderBandViewer : public BarRenderer {
 
 VocoderSection::VocoderSection(const String& name) : SynthSection(name) {
   static constexpr double kTextDragSensitivity = 0.5;
-
-  carrier_ = std::make_unique<TextSelector>("vocoder_carrier");
-  addSlider(carrier_.get());
-  carrier_->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-  carrier_->setLookAndFeel(TextLookAndFeel::instance());
-  carrier_->setLongStringLookup(strings::kVocoderCarrierNames);
 
   pitch_mode_ = std::make_unique<TextSelector>("vocoder_pitch_mode");
   addSlider(pitch_mode_.get());
@@ -285,13 +279,11 @@ VocoderSection::~VocoderSection() = default;
 void VocoderSection::paintBackground(Graphics& g) {
   SynthSection::paintBackground(g);
 
-  for (Component* text : std::initializer_list<Component*>{ carrier_.get(), pitch_mode_.get(), note_.get(),
-                                                            octave_.get(), freeze_.get(), unison_.get(),
-                                                            bands_.get() })
+  for (Component* text : std::initializer_list<Component*>{ pitch_mode_.get(), note_.get(), octave_.get(),
+                                                            freeze_.get(), unison_.get(), bands_.get() })
     drawTextComponentBackground(g, text->getBounds(), true);
 
   setLabelFont(g);
-  drawLabelForComponent(g, TRANS("CARRIER"), carrier_.get(), true);
   drawLabelForComponent(g, TRANS("PITCH"), pitch_mode_.get(), true);
   drawLabelForComponent(g, TRANS("NOTE"), note_.get(), true);
   drawLabelForComponent(g, TRANS("OCTAVE"), octave_.get(), true);
@@ -338,11 +330,9 @@ void VocoderSection::resized() {
   int knobs_width = getWidth() - knobs_x;
 
   placeKnobsInArea(Rectangle<int>(knobs_x, 0, knobs_width, section_height),
-                   { carrier_.get(), pitch_mode_.get(), note_.get(), octave_.get(), unison_.get(),
-                     bands_.get(), freeze_.get() });
-  for (Component* text : std::initializer_list<Component*>{ carrier_.get(), pitch_mode_.get(), note_.get(),
-                                                            octave_.get(), unison_.get(), bands_.get(),
-                                                            freeze_.get() })
+                   { pitch_mode_.get(), note_.get(), octave_.get(), unison_.get(), bands_.get(), freeze_.get() });
+  for (Component* text : std::initializer_list<Component*>{ pitch_mode_.get(), note_.get(), octave_.get(),
+                                                            unison_.get(), bands_.get(), freeze_.get() })
     text->setBounds(text->getBounds().withTop(widget_margin));
 
   placeKnobsInArea(Rectangle<int>(knobs_x, row_step, knobs_width, section_height),

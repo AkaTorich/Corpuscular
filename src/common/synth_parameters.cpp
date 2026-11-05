@@ -353,7 +353,8 @@ namespace vital {
       ValueDetails::kIndexed, false, "", "Vocoder Switch", strings::kOffOnNames },
     { "vocoder_dry_wet", 0x000900, 0.0, 1.0, 1.0, 0.0, 100.0,
       ValueDetails::kLinear, false, "%", "Vocoder Mix", nullptr },
-    { "vocoder_carrier", 0x000900, 0.0, 1.0, 0.0, 0.0, 1.0,
+    // No longer read (the carrier is always the table); kept so the host parameter numbers stay
+    { "vocoder_carrier", 0x000900, 0.0, 1.0, 1.0, 0.0, 1.0,
       ValueDetails::kIndexed, false, "", "Vocoder Carrier", strings::kVocoderCarrierNames },
     { "vocoder_pitch_mode", 0x000900, 0.0, 2.0, 0.0, 0.0, 1.0,
       ValueDetails::kIndexed, false, "", "Vocoder Pitch Mode", strings::kVocoderPitchModeNames },

@@ -18,6 +18,7 @@
 // from the note held in the DAW (or on a keyboard) as the tonic. Generating works while it plays.
 // The pattern with all ARP settings can be saved to Documents\Corpuscular\Arps and picked back from there.
 // With HARMONIC on, GENERATE first picks CHORDS chords of the scale (4 or more) and lays the melody over them.
+// VELOCITY gives the notes a strength that follows the music (see arp_dynamics.h); the roll's lane edits it by hand.
 class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Timer, public SaveSection::Listener,
                    public FileDragAndDropTarget {
   public:
@@ -49,7 +50,7 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
   private:
     enum Control {
       kOn, kLatch, kMode, kKey, kScaleGroup, kScale, kParam1, kParam2, kParam3, kParam4, kHarmonic, kChords, kGenerate,
-      kRate, kOctave, kGate, kBars, kZoomTimeOut, kZoomTimeIn, kZoomNotesOut, kZoomNotesIn, kFit,
+      kRate, kOctave, kGate, kVelocity, kBars, kZoomTimeOut, kZoomTimeIn, kZoomNotesOut, kZoomNotesIn, kFit,
       kUndo, kRedo, kClear, kSave, kMidi, kSavedArp, kNumControls
     };
 
@@ -90,6 +91,7 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     int paramMax(int param) const;
     StringArray paramNames(int param) const;
     void generate();
+    void applyDynamics();
     void updateScaleHighlight();
 
     ArpPianoRoll piano_roll_;
@@ -102,6 +104,8 @@ class ArpSection : public SynthSection, public ArpPianoRoll::Listener, public Ti
     int params_[4];
     bool harmonic_;           // HARMONIC: the melody follows a chord progression
     int chord_count_;         // CHORDS: how many chords the melody goes through
+    int dynamics_;            // VELOCITY: 0 (all notes equal) .. 100 (%) — how much the strength follows the music
+    int pattern_chords_;      // chords the current melody was laid over (0 = none), for VELOCITY
     String info_;
     File current_arp_file_;
     bool midi_pressed_;

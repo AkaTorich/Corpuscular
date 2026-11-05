@@ -21,6 +21,8 @@
 // moves where it plays from; both are drawn as faint markers.
 // Wheel scrolls notes, Shift+wheel scrolls time, Ctrl+wheel zooms time, Alt+wheel zooms notes.
 // Keys: Delete, Ctrl+A, Ctrl+C / Ctrl+V, Ctrl+D (duplicate), Ctrl+Z / Ctrl+Y, arrows move (Shift: by octave or bar).
+// Under the notes is the VELOCITY lane: a bar per note, as tall as the note is strong. Dragging in it sets the bars
+// under the mouse (only the selected ones when the column has a selected note). A new note takes the last strength set.
 class ArpPianoRoll : public Component {
   public:
     using Note = ArpSequencer::Note;
@@ -69,7 +71,7 @@ class ArpPianoRoll : public Component {
     bool keyPressed(const KeyPress& key) override;
 
   private:
-    enum DragMode { kNone, kMove, kResize, kSelectBox, kLength };
+    enum DragMode { kNone, kMove, kResize, kSelectBox, kLength, kVelocity };
     struct Snapshot {
       std::vector<Note> notes;
       int length;
@@ -77,6 +79,11 @@ class ArpPianoRoll : public Component {
 
     float keyWidth() const;
     float rulerHeight() const;
+    float laneHeight() const;
+    float gridBottom() const;
+    bool inLane(Point<float> point) const;
+    int laneToVelocity(float y) const;
+    void setVelocityAt(Point<float> point);
     float stepWidth() const;
     float rowHeight() const;
     float stepToX(float step) const;
@@ -106,6 +113,7 @@ class ArpPianoRoll : public Component {
     std::vector<Snapshot> redo_;
     int length_;
     int last_note_length_;
+    int last_velocity_;
 
     float first_step_;
     float steps_visible_;

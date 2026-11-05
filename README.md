@@ -8,7 +8,7 @@ Author of the changes: AkaTorich, 2026.
 ## Changes to the original code
 
 - **Name and identity.** Product name Corpuscular by AkaTorich, own plugin codes (`Ovkx` / `Crpc`),
-  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.6.
+  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.7.
 - **Sound engine** unchanged: the same preset renders bit for bit the same audio as before the changes.
 - **Tabs follow the path of the sound:** ARP → OSC → ROUTE → FILTER → AMP → FX → MOD → MATRIX → SETUP → GEN.
   - ARP — a built-in sequencer with the Melody Atoms generators (PSY ARP, ARP with 4th-bar endings, ARP STYLED,
@@ -20,8 +20,15 @@ Author of the changes: AkaTorich, 2026.
     the chord move too; the melody starts on the tonic and ends a step from it, BASS starts each chord on its root. The chords are listed under the roll. Code: `src/melody_atoms/Harmony.*`.
     The held note (DAW, MIDI keyboard, on-screen keys) is the tonic; LATCH keeps playing after release.
     In a playing DAW it follows the host tempo and bar grid; otherwise it starts from the pressed note.
-    RATE 1/32…1/4 with triplets, OCTAVE, GATE, LENGTH. The piano roll edits everything: add, move, resize,
+    RATE 1/32…1/4 with triplets, OCTAVE, GATE, VELOCITY, LENGTH. The piano roll edits everything: add, move, resize,
     delete, box select, copy/paste, duplicate, undo/redo, zoom and scroll in time and pitch.
+    VELOCITY (OFF, 10…100 %, 60 % by default) gives the notes a strength that follows the music, not chance:
+    the first sixteenth of a bar is the strongest, then the half bar, the beats, the eighths; with HARMONIC the first
+    note of each chord counts as a downbeat; long and high notes are stronger; the phrase grows to its tension at about
+    two thirds and relaxes at the end. GENERATE applies it, turning VELOCITY lays it anew over the current notes
+    (UNDO brings the old back), OFF makes all notes equal. Code: `src/common/arp_dynamics.*`.
+    Under the roll is the VEL lane: a bar per note, drag up or down to set it (in a column with a selected note only
+    the selected ones change); a new note takes the last strength set. MIDI clips keep their own velocities.
     The pattern length and start can be modulated: in MATRIX pick any source and a destination of the group Arp —
     Arp Pattern Length (`arp_pattern_length`, 1 step…100 % of the set length, 100 % by default: a negative amount
     or a bipolar source shortens the loop) and Arp Pattern Start (`arp_pattern_start`, 0…100 % of the length:
@@ -46,9 +53,8 @@ Author of the changes: AkaTorich, 2026.
   - AMP — the envelopes large, voices, velocity, glide.
   - FX — the effect chain, with a tenth effect VOCODER (QuantumVocoder) at the end of the list. Corpuscular is an
     instrument with no audio input: the synth and a wavetable (built-in, or any `.vitaltable/.wav/.flac/.wt` from the
-    wavetable folders) vocode each other. CARRIER SYNTH: the synth's sound goes through the vocoder and speaks with
-    the table's formants (a vowel table makes it sing vowels, POS picks the vowel); CARRIER TABLE: the table sounds
-    and the synth gives it its formants. The table plays AUTO (at the synth's pitch), FIXED (NOTE + OCTAVE) or KEY
+    wavetable folders) vocode each other: the table sounds (the carrier) and the synth gives it its formants, so the
+    vocoder is silent while the synth is, and the bands follow what is played. The table plays AUTO (at the synth's pitch), FIXED (NOTE + OCTAVE) or KEY
     (last played note).
     Knobs: POSITION, DETUNE, GLIDE, UNISON, BANDS 8–40, MIX, LEVEL, WIDTH, FORMANT ±12 st, ATTACK, RELEASE, AIR,
     NOISE (consonants), GATE, TILT, SPREAD (bands across the stereo field), FREEZE (holds the spectrum). The window
@@ -79,7 +85,7 @@ Author of the changes: AkaTorich, 2026.
 - **Generated library on the first launch.** When `Documents\Corpuscular` has no `Presets`, `Wavetables`, `LFOs` or
   `Skins` folder, the synth builds them in the background (512 presets in 11 types, 256 wavetables in 13 types, 256 LFO
   shapes in 16 families, 16 genre skins) with a progress bar in place of the keyboard. `Presets\Vocoder` gets 64 more
-  presets with the vocoder on (style Vocal, SYNTH or TABLE carrier with a built-in table); a library made before it
+  presets with the vocoder on (style Vocal, a built-in table as the carrier); a library made before it
   only gets this folder added. The skins (Psytrance, Techno,
   House, Trance, Drum and Bass, Dubstep, Hip-Hop, Ambient, Synthwave, Pop, Rock, Metal, Jazz, Classical, Reggae, Disco)
   are recoloured from Vital's original skin and appear in SETUP → Skin. Each folder is written as `<name>.generating` and renamed
@@ -122,6 +128,7 @@ Author of the changes: AkaTorich, 2026.
 | `src/generator/skin_generator.*` | Genre skins of the library and the 12-harmony acid skins of the GEN tab (palettes, contrast check, side panel colour)
 | `src/melody_atoms/` | Melody Atoms generators (from PresetsGenerators-main\MelodyAtoms), `melody_atoms/scales.json`; `Harmony.*` — HARMONIC: chord progression and the melody laid over it |
 | `src/common/arp_sequencer.*` | ARP sequencer: tonic from the held note, host sync, preset state |
+| `src/common/arp_dynamics.*` | ARP VELOCITY: note strength by beat, chord starts, length, height and phrase |
 | `src/interface/editor_sections/arp_section.*`, `arp_piano_roll.*` | ARP tab and its piano roll |
 | `src/unity_build/generator.cpp` | Builds the generator (C++17) |
 | `src/quantum_vocoder/` | QuantumVocoder DSP (`qv_*`, C++17): carrier, pitch tracker, wavetables, `qv_synth_vocoder.*` |

@@ -97,7 +97,9 @@ namespace vital {
     }
 
     wv::SynthVocoderParams params;
-    params.tableCarrier = carrier_->value() >= 0.5f;
+    // The table is always the carrier and the synth speaks through it (SYNTH mode is gone: with the table as
+    // the voice the vocoder sounded with the synth silent and the bands never followed the playing)
+    params.tableCarrier = true;
     params.pitchMode = (int)std::round(pitch_mode_->value());
     params.note = note_->value();
     params.octave = (int)std::round(octave_->value());
