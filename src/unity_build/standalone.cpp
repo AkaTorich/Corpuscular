@@ -17,5 +17,6 @@
 
 #include "generate_command.cpp"
 #include "main.cpp"
+#include "retrigger_test.cpp"
 #include "synth_computer_keyboard.cpp"
 #include "synth_editor.cpp"

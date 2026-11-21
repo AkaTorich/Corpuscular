@@ -20,6 +20,7 @@
 #include "corpuscular_info.h"
 #include "full_interface.h"
 #include "generate_command.h"
+#include "retrigger_test.h"
 #include "load_save.h"
 #include "startup.h"
 #include "synth_editor.h"
@@ -459,6 +460,10 @@ class SynthApplication : public JUCEApplication {
       }
       else if (command.contains(" --generate ")) {
         runGenerateCommand(getCommandLineParameterArray());
+        quit();
+      }
+      else if (command.contains(" --retrigger-test")) {
+        runRetriggerTest(getCommandLineParameterArray());
         quit();
       }
       else if (command.contains(" --audition-test ")) {

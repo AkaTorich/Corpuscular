@@ -1,4 +1,5 @@
 /* Copyright 2013-2019 Matt Tytel
+ * Modified for Corpuscular, 2026.
  *
  * vital is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -568,6 +569,19 @@ namespace vital {
     return nullptr;
   }
 
+  // Corpuscular: the voice still playing this note (held, sustained or releasing, not one being killed)
+  Voice* VoiceHandler::grabVoiceOfNote(int note, int channel) {
+    for (auto iter = active_voices_.begin(); iter != active_voices_.end(); ++iter) {
+      Voice* voice = *iter;
+      if (voice->state().event != kVoiceKill && voice->state().midi_note == note &&
+          voice->state().channel == channel) {
+        active_voices_.erase(iter);
+        return voice;
+      }
+    }
+    return nullptr;
+  }
+
   Voice* VoiceHandler::getVoiceToKill(int max_voices) {
     int excess_voices = active_voices_.size() - max_voices;
     Voice* released = nullptr;
@@ -649,7 +663,13 @@ namespace vital {
   void VoiceHandler::noteOn(int note, mono_float velocity, int sample, int channel) {
     VITAL_ASSERT(channel >= 0 && channel < kNumMidiChannels);
 
-    Voice* voice = grabVoice();
+    // Corpuscular: the same note struck again goes back to the voice still playing it, as the Steal override
+    // does: the wave keeps its phase and the envelope starts from its current level. Before, a fresh voice
+    // started over the fading one, and two copies of one note at different phases gave a short bang at every
+    // repeat (a looped note in a DAW).
+    Voice* voice = grabVoiceOfNote(note, channel);
+    if (voice == nullptr)
+      voice = grabVoice();
     if (voice == nullptr)
       return;
 

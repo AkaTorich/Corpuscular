@@ -1,4 +1,5 @@
 /* Copyright 2013-2019 Matt Tytel
+ * Modified for Corpuscular, 2026.
  *
  * vital is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -419,6 +420,7 @@ namespace vital {
       Voice* grabFreeVoice();
       Voice* grabFreeParallelVoice();
       Voice* grabVoiceOfType(Voice::KeyState key_state);
+      Voice* grabVoiceOfNote(int note, int channel);
       Voice* getVoiceToKill(int max_voices);
       int grabNextUnplayedPressedNote();
       void sortVoicePriority();

@@ -8,8 +8,12 @@ Author of the changes: AkaTorich, 2026.
 ## Changes to the original code
 
 - **Name and identity.** Product name Corpuscular by AkaTorich, own plugin codes (`Ovkx` / `Crpc`),
-  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.7.
+  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.8.
 - **Sound engine** unchanged: the same preset renders bit for bit the same audio as before the changes.
+  One fix: the same note struck again goes back to the voice still playing it, with any number of voices (as the
+  Steal override does): the wave keeps its phase and the envelope starts from its current level. In Vital a fresh
+  voice started over the fading one, and the two copies of one note gave a short bang at every repeat of a looped
+  note. Code: `VoiceHandler::noteOn` and `grabVoiceOfNote` in `src/synthesis/framework/voice_handler.cpp`.
 - **Tabs follow the path of the sound:** ARP → OSC → ROUTE → FILTER → AMP → FX → MOD → MATRIX → SETUP → GEN.
   - ARP — a built-in sequencer with the Melody Atoms generators (PSY ARP, ARP with 4th-bar endings, ARP STYLED,
     BASS, PAD; keys, scale library and the same settings as Melody Atoms). GENERATE works while it plays.
@@ -192,6 +196,19 @@ Rendering a preset to WAV without a window (the working folder is where the WAV 
 ```bat
 Corpuscular.exe --headless --render preset.vital -m 48 -l 4 -b 140
 ```
+
+Repeating one note like a looped DAW clip (Init preset, 1 and 8 voices, note-off and note-on meeting at the loop
+point): writes the WAVs into the folder and prints the level right after each repeat against the first note
+(`over` and `rmsmax` near 1.00 mean no bang). Code: `src/standalone/retrigger_test.cpp`.
+
+```bat
+Corpuscular.exe --headless --retrigger-test <folder>
+```
+
+The same through the installed plugin as a DAW plays it (host position looping, blocks of 1024, C1, one bar at
+120 BPM, no sound card): `tools/loop_render` (build with its `build.cmd`, Code\Libraries mapped to `V:`).
+`LoopRender.exe <folder> [plugin.vst3]` writes the WAVs and the same numbers for 1 and 8 voices and for the
+seam orders (note-off then note-on, the other way, All Notes Off, All Sound Off).
 
 ## License
 
