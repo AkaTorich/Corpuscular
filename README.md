@@ -8,7 +8,7 @@ Author of the changes: AkaTorich, 2026.
 ## Changes to the original code
 
 - **Name and identity.** Product name Corpuscular by AkaTorich, own plugin codes (`Ovkx` / `Crpc`),
-  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.8.
+  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.9.
 - **Sound engine** unchanged: the same preset renders bit for bit the same audio as before the changes.
   One fix: the same note struck again goes back to the voice still playing it, with any number of voices (as the
   Steal override does): the wave keeps its phase and the envelope starts from its current level. In Vital a fresh
@@ -109,8 +109,13 @@ Author of the changes: AkaTorich, 2026.
   copied to `Documents\Corpuscular\Skins` on launch when missing.
 - **No network at all.** No sign in, no downloads, no update checks, no store, no text to wavetable.
   `CORPUSCULAR_NO_NETWORK` makes every web request in JUCE fail and refuses to open remote links.
-- **Data folder** `Documents\Corpuscular`. The Vital data folder (if present) is scanned too,
-  so existing Vital presets, wavetables and skins show up in the browsers.
+- **Data folder** `Documents\Corpuscular` only (on macOS `~/Music/Corpuscular`, on Linux `~/.local/share/corpuscular`):
+  presets, wavetables, LFOs, samples, skins, banks and arps. Vital's folder (`Documents\Vital`) and Vital's settings
+  are never read; settings, favorites and the skin choice are `Corpuscular.config`, `Corpuscular.favorites`,
+  `Corpuscular.skin` in `AppData\Roaming\corpuscular`. When the folder is missing it is made with the user folders
+  Vital makes in its own: `User\Presets`, `User\Wavetables`, `User\LFOs`, `User\Samples`, `User\Skins`; the library
+  folders at the top come from the generated library. Code: `LoadSave::getDataDirectory`, `createDataDirectory`
+  and `getDirectories` in `src/common/load_save.cpp`.
 - **File formats unchanged:** `.vital`, `.vitalbank`, `.vitalskin`, `.vitaltable`, `.vitallfo`;
   presets are written as Vital 1.0.7 and open in Vital. Presets from newer Vital versions (1.5.x) open too:
   the settings Corpuscular knows load, the rest is skipped.

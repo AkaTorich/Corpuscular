@@ -152,7 +152,7 @@ class LoadSave {
     static std::vector<std::string> getAdditionalFolders(const std::string& name);
 
     static File getDataDirectory();
-    static File getVitalDataDirectory();
+    static void createDataDirectory();
     static std::vector<File> getDirectories(const String& folder_name);
     static std::vector<File> getPresetDirectories();
     static std::vector<File> getWavetableDirectories();

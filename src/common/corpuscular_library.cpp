@@ -329,6 +329,7 @@ namespace corpuscular {
   }
 
   void ensureLibrary(std::function<void()> on_done) {
+    LoadSave::createDataDirectory();
     if (libraryExists(LoadSave::getDataDirectory())) {
       installSignatureSkins(LoadSave::getDataDirectory());
       return;

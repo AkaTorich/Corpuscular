@@ -1841,42 +1841,25 @@ File LoadSave::getDataDirectory() {
   return directory;
 }
 
-// Corpuscular: Vital's library folder (from Vital's own config, else Documents/Vital), shown next to ours
-File LoadSave::getVitalDataDirectory() {
-#if defined(JUCE_DATA_STRUCTURES_H_INCLUDED)
-  PropertiesFile::Options config_options;
-  config_options.applicationName = corpuscular::kVitalFolderName;
-  config_options.osxLibrarySubFolder = "Application Support";
-  config_options.filenameSuffix = "config";
-#ifdef LINUX
-  config_options.folderName = ".vital";
-#else
-  config_options.folderName = "vital";
-#endif
-  File config_file = config_options.getDefaultFile();
-  if (config_file.exists()) {
-    try {
-      json data = json::parse(config_file.loadFileAsString().toStdString(), nullptr, false);
-      if (data.is_object() && data.count("data_directory")) {
-        std::string path = data["data_directory"];
-        File folder(path);
-        if (folder.isDirectory())
-          return folder;
-      }
-    }
-    catch (const json::exception&) { }
-  }
-#endif
+// Corpuscular: its own folder with the user folders Vital makes in its own (User/Presets, Wavetables, LFOs,
+// Samples, Skins). The library folders at the top are left to the library builder: it makes them on first launch.
+void LoadSave::createDataDirectory() {
+  File data_dir = getDataDirectory();
+  if (!data_dir.isDirectory() && !data_dir.createDirectory())
+    return;
 
-#ifdef LINUX
-  return File("~/.local/share/vital/");
-#elif defined(__APPLE__)
-  return File::getSpecialLocation(File::userHomeDirectory).getChildFile("Music").getChildFile(corpuscular::kVitalFolderName);
-#else
-  return File::getSpecialLocation(File::userDocumentsDirectory).getChildFile(corpuscular::kVitalFolderName);
-#endif
+  File user_dir = data_dir.getChildFile(kUserDirectoryName);
+  if (!user_dir.isDirectory())
+    user_dir.createDirectory();
+  for (const std::string& name : { kPresetFolderName, kWavetableFolderName, kLfoFolderName,
+                                   kSampleFolderName, kSkinFolderName }) {
+    File folder = user_dir.getChildFile(name);
+    if (!folder.isDirectory())
+      folder.createDirectory();
+  }
 }
 
+// Corpuscular: only its own folder (Documents/Corpuscular); Vital's folder is never read
 std::vector<File> LoadSave::getDirectories(const String& folder_name) {
   File data_dir = getDataDirectory();
   std::vector<File> directories;
@@ -1887,11 +1870,6 @@ std::vector<File> LoadSave::getDirectories(const String& folder_name) {
     data_dir.findChildFiles(sub_folders, File::findDirectories, false);
   }
 
-  File vital_dir = getVitalDataDirectory();
-  if (vital_dir.isDirectory() && vital_dir != data_dir) {
-    sub_folders.add(vital_dir);
-    vital_dir.findChildFiles(sub_folders, File::findDirectories, false);
-  }
   for (const File& sub_folder : sub_folders) {
     File directory = sub_folder.getChildFile(folder_name);
     if (directory.exists() && directory.isDirectory())
