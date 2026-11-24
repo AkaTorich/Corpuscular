@@ -1,170 +1,55 @@
 # Corpuscular
 
 Corpuscular is a spectral warping wavetable synthesizer: a VST3 plugin and a standalone app for Windows, macOS
-(plus Audio Unit) and Linux. It is free software under the GNU GPL v3 (see `LICENSE` and the License section below).
+(plus Audio Unit) and Linux. Version 0.1.9. It is free software under the GNU GPL v3 (see `LICENSE` and the License
+section below).
 
 Author of the changes: AkaTorich, 2026.
 
-## Changes to the original code
+## What it is
 
-- **Name and identity.** Product name Corpuscular by AkaTorich, own plugin codes (`Ovkx` / `Crpc`),
-  bundle id `com.ovk.corpuscular`, own logo and icons. Version 0.1.9.
-- **Sound engine** unchanged: the same preset renders bit for bit the same audio as before the changes.
-  One fix: the same note struck again goes back to the voice still playing it, with any number of voices (as the
-  Steal override does): the wave keeps its phase and the envelope starts from its current level. In Vital a fresh
-  voice started over the fading one, and the two copies of one note gave a short bang at every repeat of a looped
-  note. Code: `VoiceHandler::noteOn` and `grabVoiceOfNote` in `src/synthesis/framework/voice_handler.cpp`.
 - **Tabs follow the path of the sound:** ARP → OSC → ROUTE → FILTER → AMP → FX → MOD → MATRIX → SETUP → GEN.
-  - ARP — a built-in sequencer with the Melody Atoms generators (PSY ARP, ARP with 4th-bar endings, ARP STYLED,
-    BASS, PAD; keys, scale library and the same settings as Melody Atoms). GENERATE works while it plays.
-    HARMONIC (lit) makes the melody follow chords: GENERATE picks CHORDS chords of the scale (4 by default,
-    up to 8) as tension and release: tonic → away (VI, IV, II, III) → dominant (V or VII), and the loop resolves
-    back into the tonic; from 6 chords two phrases, a question and an answer. The chords share the melody
-    equally, the notes on eighths and the long notes become chord notes, quick notes that rub a semitone against
-    the chord move too; the melody starts on the tonic and ends a step from it, BASS starts each chord on its root. The chords are listed under the roll. Code: `src/melody_atoms/Harmony.*`.
-    The held note (DAW, MIDI keyboard, on-screen keys) is the tonic; LATCH keeps playing after release.
-    In a playing DAW it follows the host tempo and bar grid; otherwise it starts from the pressed note.
-    RATE 1/32…1/4 with triplets, OCTAVE, GATE, VELOCITY, LENGTH. The piano roll edits everything: add, move, resize,
-    delete, box select, copy/paste, duplicate, undo/redo, zoom and scroll in time and pitch.
-    VELOCITY (OFF, 10…100 %, 60 % by default) gives the notes a strength that follows the music, not chance:
-    the first sixteenth of a bar is the strongest, then the half bar, the beats, the eighths; with HARMONIC the first
-    note of each chord counts as a downbeat; long and high notes are stronger; the phrase grows to its tension at about
-    two thirds and relaxes at the end. GENERATE applies it, turning VELOCITY lays it anew over the current notes
-    (UNDO brings the old back), OFF makes all notes equal. Code: `src/common/arp_dynamics.*`.
-    Under the roll is the VEL lane: a bar per note, drag up or down to set it (in a column with a selected note only
-    the selected ones change); a new note takes the last strength set. MIDI clips keep their own velocities.
-    The pattern length and start can be modulated: in MATRIX pick any source and a destination of the group Arp —
-    Arp Pattern Length (`arp_pattern_length`, 1 step…100 % of the set length, 100 % by default: a negative amount
-    or a bipolar source shortens the loop) and Arp Pattern Start (`arp_pattern_start`, 0…100 % of the length:
-    where it plays from; with Random on it every arp note comes from another place of the pattern).
-    Faint markers show the moved start and end. Every note knows its own end, so jumps never hang or cut notes.
-    With nothing on them the pattern plays as set, locked to the bar grid.
-    The pattern and the ARP settings are saved in the preset and in the DAW project (key `corpuscular_arp`,
-    which Vital ignores); a preset without one keeps the current pattern. With ARP off the MIDI passes untouched.
-    `--headless --render` plays the pattern too when the preset has ARP on.
-    MODE, KEY, SCALE GROUP, SCALE and the mode list open Vital's popup list (click the middle; the sides step).
-    SAVE stores the pattern with all ARP settings in `Documents\Corpuscular\Arps\*.corparp` (Vital's save dialog);
-    SAVED ARP steps through them with its arrows, a click on the name opens Vital's file browser. Loading keeps ON as it is.
-    DRAG MIDI: drag it into the DAW to drop the pattern as a MIDI clip (as it plays: RATE, GATE, OCTAVE, the clip
-    as long as the pattern); a click saves the same `.mid` to `Documents\Corpuscular\Arps\MIDI` (a new file each time,
-    named after the saved arp or the key and mode). `ArpSequencer::writeMidiFile` writes it.
-    The other way: a MIDI clip dragged from the DAW (or a `.mid`/`.midi` file) dropped on the tab becomes the pattern —
-    all tracks, on the grid of the current RATE, whole bars, in the current KEY; UNDO brings the old pattern back
-    (`ArpSequencer::readMidiFile`).
-  - OSC — the three oscillators and the sample source, full height.
-  - ROUTE — where every source goes (filter 1, filter 2, both, effects, direct) and whether the filters run in series, as a diagram and a grid.
-  - FILTER — filter 1 and filter 2, large.
-  - AMP — the envelopes large, voices, velocity, glide.
-  - FX — the effect chain, with a tenth effect VOCODER (QuantumVocoder) at the end of the list. Corpuscular is an
-    instrument with no audio input: the synth and a wavetable (built-in, or any `.vitaltable/.wav/.flac/.wt` from the
-    wavetable folders) vocode each other: the table sounds (the carrier) and the synth gives it its formants, so the
-    vocoder is silent while the synth is, and the bands follow what is played. The table plays AUTO (at the synth's pitch), FIXED (NOTE + OCTAVE) or KEY
-    (last played note).
-    Knobs: POSITION, DETUNE, GLIDE, UNISON, BANDS 8–40, MIX, LEVEL, WIDTH, FORMANT ±12 st, ATTACK, RELEASE, AIR,
-    NOISE (consonants), GATE, TILT, SPREAD (bands across the stereo field), FREEZE (holds the spectrum). The window
-    under the table name shows the table's frame at POS, with the band levels of the modulator over it.
-    Presets keep Vital's 9-effect order and store the vocoder's slot and table under `corpuscular_vocoder`.
-  - MOD — envelopes, LFOs and random sources across the whole window.
+  - ARP — a built-in sequencer with the Melody Atoms generators and a piano roll. The held note is the tonic; it
+    follows the DAW tempo and bar grid. HARMONIC lays the melody over a chord progression, VELOCITY gives the notes
+    a musical strength. Patterns are saved in the preset and in `Documents\Corpuscular\Arps`; DRAG MIDI drops the
+    pattern into the DAW as a MIDI clip, and a MIDI clip dropped on the tab becomes the pattern.
+  - OSC — the three oscillators and the sample source.
+  - ROUTE — where every source goes (filter 1, filter 2, both, effects, direct).
+  - FILTER — filter 1 and filter 2.
+  - AMP — the envelopes, voices, velocity, glide.
+  - FX — the effect chain with a tenth effect, VOCODER: a wavetable sounds and the synth gives it its formants.
+  - MOD — envelopes, LFOs and random sources.
   - MATRIX — the modulation matrix.
   - SETUP — oscillator options, voice settings, oversampling, display, skin.
-  - GEN — the built-in preset and wavetable generators (psytrance-oriented). Everything made there goes straight into Corpuscular:
-    - NEW PRESET — a preset of the chosen type, saved to `User\Presets\Generated` and loaded;
-    - NEW + WAVETABLES — the same plus a fresh wavetable in every oscillator the preset uses;
-    - SIMILAR — a relative of the current preset: continuous knobs move a little, switches, tuning and wavetables stay,
-      stepped LFO melodies swap a few steps (same scale); saved to `User\Presets\Generated\Similar` as "Name ~ Word";
-    - BACK / NEXT — the last 20 presets made on the tab (kept in `User\generator_history.txt`);
-    - MAKE BANK — any number of presets of any types as a bank folder in the data folder; the preset browser opens on it;
-    - NEW TO OSC 1/2/3 — a wavetable (13 types, 8–256 frames, 256–4096 samples) loaded into that oscillator and saved to `User\Wavetables\Generated`;
-    - EXPORT FILE — the wavetable for other synths: wavetable WAV (2048-sample frames), WAV 32/16, `.wt`, raw float;
-    - VOCODER — OFF, ON (every new preset and bank preset gets the vocoder) or SOME (about one in four).
-    - SKINS — a new acid psytrance skin by one of 12 colour harmonies (Complementary, Analogous, Triadic, Split
-      Complementary, Square, Monochrome, Accented Analogous, Double Split, Rectangle, Clash, Achromatic Accent,
-      Warm & Cool): neon hues at full saturation on a near-black background. NEW SKIN puts it on the window and saves it
-      to `UserSkins` under the name shown (click the name for another); DEFAULT returns to the built-in skin.
-    - How the presets are made: the ranges, choices and macros of each type come from 1766 commercial psytrance
-      Vital presets (Outerverse and Sonicspore weighed first), measured with `tools/preset_stats`. Every preset is
-      played once before it is kept: a silent, broken or exploding one is made again, and the level is set so all
-      presets sound equally loud. `Corpuscular.exe --headless --audition-test <folder> --count N` makes N of each type
-      and writes what was kept, what was remade and why.
-- **Generated library on the first launch.** When `Documents\Corpuscular` has no `Presets`, `Wavetables`, `LFOs` or
-  `Skins` folder, the synth builds them in the background (512 presets in 11 types, 256 wavetables in 13 types, 256 LFO
-  shapes in 16 families, 16 genre skins) with a progress bar in place of the keyboard. `Presets\Vocoder` gets 64 more
-  presets with the vocoder on (style Vocal, a built-in table as the carrier); a library made before it
-  only gets this folder added. The skins (Psytrance, Techno,
-  House, Trance, Drum and Bass, Dubstep, Hip-Hop, Ambient, Synthwave, Pop, Rock, Metal, Jazz, Classical, Reggae, Disco)
-  are recoloured from Vital's original skin and appear in SETUP → Skin. Each folder is written as `<name>.generating` and renamed
-  when complete; an existing folder is never rebuilt. `Corpuscular.exe --headless --generate` builds the missing parts right away.
-- **Preset styles** Arp, Pluck and Vocal added to the browser filters and the save dialog (12 styles, 4 per row);
-  generated presets use them.
-- **Modulation sources stay visible** on every tab, so drag and drop onto any knob still works.
-- **Preview on preset switch.** Picking a preset in the browser, with the arrows or on the GEN tab plays one note of it
-  for 5 seconds (low for basses and sequences, middle C for pads, keys, plucks, stabs). The next pick cuts it at once.
-- **Undo / redo** for every knob, switch and list choice: the two arrows right of the preset name. A finished action
-  in the window (a drag, a click, a wheel turn, a pick from a list) is one step, up to 200 steps. Automation from
-  the DAW and MIDI are not steps; loading a preset starts a new history. The ARP tab keeps its own note undo.
-- **Default skin "Corpuscular TI"**: charcoal panels, red LED accents, wooden side panels.
-  A new skin colour "Side Panel" draws the side panels; skins without it have no side panels.
-  Menu: Load Skin..., Open Skin Designer, Back to Corpuscular TI Skin.
-- **Signature skins** Psy Night Stage, Psy Day Stage and Neon Tubes (from the preset generator) are built in and
-  copied to `Documents\Corpuscular\Skins` on launch when missing.
-- **No network at all.** No sign in, no downloads, no update checks, no store, no text to wavetable.
-  `CORPUSCULAR_NO_NETWORK` makes every web request in JUCE fail and refuses to open remote links.
-- **Data folder** `Documents\Corpuscular` only (on macOS `~/Music/Corpuscular`, on Linux `~/.local/share/corpuscular`):
-  presets, wavetables, LFOs, samples, skins, banks and arps. Vital's folder (`Documents\Vital`) and Vital's settings
-  are never read; settings, favorites and the skin choice are `Corpuscular.config`, `Corpuscular.favorites`,
-  `Corpuscular.skin` in `AppData\Roaming\corpuscular`. When the folder is missing it is made with the user folders
-  Vital makes in its own: `User\Presets`, `User\Wavetables`, `User\LFOs`, `User\Samples`, `User\Skins`; the library
-  folders at the top come from the generated library. Code: `LoadSave::getDataDirectory`, `createDataDirectory`
-  and `getDirectories` in `src/common/load_save.cpp`.
-- **File formats unchanged:** `.vital`, `.vitalbank`, `.vitalskin`, `.vitaltable`, `.vitallfo`;
-  presets are written as Vital 1.0.7 and open in Vital. Presets from newer Vital versions (1.5.x) open too:
-  the settings Corpuscular knows load, the rest is skipped.
+  - GEN — preset, bank, wavetable and skin generators; everything made there loads into the synth at once.
+- **Library on the first launch:** presets, wavetables, LFO shapes and skins are generated in the background into
+  `Documents\Corpuscular`; an existing folder is never rebuilt.
+- **Preview on preset switch:** a picked preset plays one note for 5 seconds.
+- **Undo / redo** for every control: the two arrows right of the preset name.
+- **Default skin "Corpuscular TI"**, plus the built-in skins Psy Night Stage, Psy Day Stage and Neon Tubes.
+- **No network at all:** no sign in, downloads or update checks (`CORPUSCULAR_NO_NETWORK`).
+- **Same note repeated:** it goes back to the voice still playing it, so a looped note has no click at the seam.
+- **File formats** as in Vital: `.vital`, `.vitalbank`, `.vitalskin`, `.vitaltable`, `.vitallfo`; presets are
+  written as Vital 1.0.7 and open in Vital.
 
-## Where things are
+## Data folder
 
-| Path | What |
-|---|---|
-| `CMakeLists.txt`, `build.cmd` | Build (CMake; `build.cmd` for Visual Studio 2026) |
-| `.github/workflows/build.yml` | Builds for Windows, macOS and Linux; a `v*` tag publishes them as a release |
-| `src/common/corpuscular_info.h` | Name, version, format version |
-| `src/interface/editor_sections/full_interface.*` | Window layout and tabs |
-| `src/interface/editor_sections/header_section.cpp` | Tab names, logo |
-| `src/interface/editor_sections/routing_section.*` | ROUTE tab |
-| `src/interface/editor_sections/generator_section.*` | GEN tab |
-| `src/generator/` | Generator engines: `preset_generator.h` (presets, scales, banks), `wavetable_generator.h` (wavetables and their file formats) |
-| `src/generator/lfo_generator.*` | LFO shape generator (16 families) |
-| `src/generator/preset_mutator.*` | SIMILAR: makes a relative of a preset |
-| `src/generator/skin_generator.*` | Genre skins of the library and the 12-harmony acid skins of the GEN tab (palettes, contrast check, side panel colour)
-| `src/melody_atoms/` | Melody Atoms generators (from PresetsGenerators-main\MelodyAtoms), `melody_atoms/scales.json`; `Harmony.*` — HARMONIC: chord progression and the melody laid over it |
-| `src/common/arp_sequencer.*` | ARP sequencer: tonic from the held note, host sync, preset state |
-| `src/common/arp_dynamics.*` | ARP VELOCITY: note strength by beat, chord starts, length, height and phrase |
-| `src/interface/editor_sections/arp_section.*`, `arp_piano_roll.*` | ARP tab and its piano roll |
-| `src/unity_build/generator.cpp` | Builds the generator (C++17) |
-| `src/quantum_vocoder/` | QuantumVocoder DSP (`qv_*`, C++17): carrier, pitch tracker, wavetables, `qv_synth_vocoder.*` |
-| `src/synthesis/modules/vocoder_module.*` | The vocoder in the effect chain; the sidechain input lives in `sound_engine.*` |
-| `src/interface/editor_sections/vocoder_section.*` | VOCODER panel on the FX tab, `icons/vocoder.svg` |
-| `branding/psy_*.vitalskin`, `branding/neon_tubes.vitalskin` | Signature skins built into the binary |
-| `src/common/corpuscular_library.*` | First-launch library build (background thread, progress) |
-| `src/interface/editor_sections/library_progress_section.*` | The progress bar shown during that build |
-| `src/interface/editor_sections/undo_controller.*` | Undo / redo of control values (buttons in `header_section.cpp`) |
-| `src/interface/editor_sections/preset_preview.*` | Preview on preset switch |
-| `src/generator/recipes/` | One recipe per preset type; `gen_psy_style.*` holds the choices and macros taken from the commercial packs |
-| `src/generator/gen_sanity.cpp` | Type rules (attack, sustain, release, room) and the filter-above-the-note check |
-| `src/common/preset_audition.*` | Plays a generated preset, rejects silent ones, sets the level |
-| `tools/preset_stats/PresetStats.cs` | Statistics of a preset folder by type (C#, `csc /optimize`) |
-| `src/standalone/generate_command.*` | `--generate` command line |
-| `src/interface/look_and_feel/skin.*` | Skins, the Side Panel colour |
-| `default.vitalskin` | Corpuscular TI skin built into the binary |
-| `branding/` | Logo sources, icons, preview, the original Vital skin |
-| `icons/corpuscular_*.svg` | Logo as used inside the window |
-| `third_party/JUCE` | JUCE 6.0.5 with the original project's module changes, the network switch and a fix for macOS 15 SDKs (`juce_mac_Windowing.mm`) |
-| `fonts/` | Built-in fonts and their licenses (`fonts/README.txt`) |
+Only `Documents\Corpuscular` (macOS `~/Music/Corpuscular`, Linux `~/.local/share/corpuscular`): presets, wavetables,
+LFOs, samples, skins, banks and arps. Vital's folder and settings are never read. Settings, favorites and the skin
+choice are `Corpuscular.config`, `Corpuscular.favorites` and `Corpuscular.skin` in `AppData\Roaming\corpuscular`.
+A missing folder is made with `User\Presets`, `User\Wavetables`, `User\LFOs`, `User\Samples`, `User\Skins`.
 
-Every Vital file changed for Corpuscular carries the line `Modified for Corpuscular, 2026.` in its header.
+## Installing
+
+Ready builds for all three systems are on the Releases page.
+
+- **Windows:** copy `Corpuscular.vst3` to `C:\Program Files\Common Files\VST3`; `Corpuscular.exe` runs on its own.
+- **macOS:** copy `Corpuscular.vst3` to `~/Library/Audio/Plug-Ins/VST3`, `Corpuscular.component` to
+  `~/Library/Audio/Plug-Ins/Components`, `Corpuscular.app` to Applications. The builds are not signed: allow them once
+  with `xattr -dr com.apple.quarantine Corpuscular.app Corpuscular.vst3 Corpuscular.component`.
+- **Linux:** copy `Corpuscular.vst3` to `~/.vst3`; `Corpuscular` runs on its own.
 
 ## Building
-
-Ready builds for all three systems are on the Releases page (made by `.github/workflows/build.yml`).
 
 **Windows** — Visual Studio 2022 or newer with the C++ desktop workload:
 
@@ -172,9 +57,8 @@ Ready builds for all three systems are on the Releases page (made by `.github/wo
 build.cmd
 ```
 
-`build.cmd` maps the project folder to drive `X:` (JUCE tools fail on non-ASCII paths),
-configures CMake into `build\` and builds Release. Plain `cmake -S . -B build -A x64` and
-`cmake --build build --config Release` work too when the path is ASCII.
+`build.cmd` maps the project folder to drive `X:` (JUCE tools fail on non-ASCII paths), configures CMake into
+`build\` and builds Release.
 
 **macOS** — Xcode command line tools, CMake and Ninja:
 
@@ -193,27 +77,50 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-Results are in `build/CorpuscularApp_artefacts/Release` (the app) and
-`build/CorpuscularPlugin_artefacts/Release` (`VST3/Corpuscular.vst3`, on macOS also `AU/Corpuscular.component`).
+Results: `build/CorpuscularApp_artefacts/Release` (the app) and `build/CorpuscularPlugin_artefacts/Release`
+(`VST3/Corpuscular.vst3`, on macOS also `AU/Corpuscular.component`). `.github/workflows/build.yml` builds all three
+systems; a `v*` tag publishes them as a release.
 
-Rendering a preset to WAV without a window (the working folder is where the WAV goes):
+## Checks
 
 ```bat
+rem Render a preset to WAV (into the working folder)
 Corpuscular.exe --headless --render preset.vital -m 48 -l 4 -b 140
-```
 
-Repeating one note like a looped DAW clip (Init preset, 1 and 8 voices, note-off and note-on meeting at the loop
-point): writes the WAVs into the folder and prints the level right after each repeat against the first note
-(`over` and `rmsmax` near 1.00 mean no bang). Code: `src/standalone/retrigger_test.cpp`.
-
-```bat
+rem One note repeated like a looped DAW clip, 1 and 8 voices: numbers near 1.00 mean no click at the seam
 Corpuscular.exe --headless --retrigger-test <folder>
+
+rem The same through the installed plugin, the way a DAW plays it (tools/loop_render, built with its build.cmd)
+LoopRender.exe <folder> [plugin.vst3]
+
+rem Generated presets of every type, each heard before it is kept
+Corpuscular.exe --headless --audition-test <folder> --count N
+
+rem Build the missing parts of the library right away
+Corpuscular.exe --headless --generate
 ```
 
-The same through the installed plugin as a DAW plays it (host position looping, blocks of 1024, C1, one bar at
-120 BPM, no sound card): `tools/loop_render` (build with its `build.cmd`, Code\Libraries mapped to `V:`).
-`LoopRender.exe <folder> [plugin.vst3]` writes the WAVs and the same numbers for 1 and 8 voices and for the
-seam orders (note-off then note-on, the other way, All Notes Off, All Sound Off).
+## Where things are
+
+| Path | What |
+|---|---|
+| `CMakeLists.txt`, `build.cmd` | Build |
+| `.github/workflows/build.yml` | Builds for Windows, macOS and Linux, releases |
+| `src/common/corpuscular_info.h` | Name, version, format version |
+| `src/common/load_save.*` | Data folder, settings files, preset and file loading |
+| `src/common/corpuscular_library.*` | First-launch library |
+| `src/common/arp_sequencer.*`, `arp_dynamics.*` | ARP sequencer and note strength |
+| `src/common/preset_audition.*` | Plays a generated preset, rejects silent ones, sets the level |
+| `src/melody_atoms/` | Melody Atoms generators and chord progressions |
+| `src/generator/` | Preset, wavetable, LFO and skin generators |
+| `src/quantum_vocoder/`, `src/synthesis/modules/vocoder_module.*` | Vocoder |
+| `src/synthesis/` | Sound engine |
+| `src/interface/editor_sections/` | Window, tabs and panels |
+| `src/interface/look_and_feel/skin.*`, `default.vitalskin`, `branding/` | Skins, logo, icons |
+| `src/standalone/` | Standalone app and its command line (`--generate`, `--retrigger-test`) |
+| `tools/loop_render/` | LoopRender: loop check through the installed plugin |
+| `third_party/` | JUCE 6.0.5, VST3 SDK, json, concurrentqueue, kissfft |
+| `fonts/` | Built-in fonts and their licenses |
 
 ## License
 
