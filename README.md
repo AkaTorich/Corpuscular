@@ -1,7 +1,7 @@
 # Corpuscular
 
 Corpuscular is a spectral warping wavetable synthesizer: a VST3 plugin and a standalone app for Windows, macOS
-(plus Audio Unit) and Linux. Version 0.1.9. It is free software under the GNU GPL v3 (see `LICENSE` and the License
+(plus Audio Unit) and Linux. Version 0.1.10. It is free software under the GNU GPL v3 (see `LICENSE` and the License
 section below).
 
 Author of the changes: AkaTorich, 2026.
@@ -24,7 +24,9 @@ Author of the changes: AkaTorich, 2026.
   - GEN — preset, bank, wavetable and skin generators; everything made there loads into the synth at once.
 - **Library on the first launch:** presets, wavetables, LFO shapes and skins are generated in the background into
   `Documents\Corpuscular`; an existing folder is never rebuilt.
-- **Preview on preset switch:** a picked preset plays one note for 5 seconds.
+- **Preview on preset switch:** a picked preset plays one note for 5 seconds; while the DAW plays there is no
+  preview, and a note the DAW holds goes on with the new preset (the standalone app has no transport and always
+  previews).
 - **Undo / redo** for every control: the two arrows right of the preset name.
 - **Default skin "Corpuscular TI"**, plus the built-in skins Psy Night Stage, Psy Day Stage and Neon Tubes.
 - **No network at all:** no sign in, downloads or update checks (`CORPUSCULAR_NO_NETWORK`).
@@ -87,7 +89,8 @@ systems; a `v*` tag publishes them as a release.
 rem Render a preset to WAV (into the working folder)
 Corpuscular.exe --headless --render preset.vital -m 48 -l 4 -b 140
 
-rem One note repeated like a looped DAW clip, 1 and 8 voices: numbers near 1.00 mean no click at the seam
+rem One note repeated like a looped DAW clip, 1 and 8 voices: numbers near 1.00 mean no click at the seam;
+rem then a preset switched under a held note: near 1.00 while the DAW plays (the note goes on)
 Corpuscular.exe --headless --retrigger-test <folder>
 
 rem The same through the installed plugin, the way a DAW plays it (tools/loop_render, built with its build.cmd)
@@ -110,6 +113,7 @@ Corpuscular.exe --headless --generate
 | `src/common/load_save.*` | Data folder, settings files, preset and file loading |
 | `src/common/corpuscular_library.*` | First-launch library |
 | `src/common/arp_sequencer.*`, `arp_dynamics.*` | ARP sequencer and note strength |
+| `src/interface/editor_sections/preset_preview.*` | Preview note on preset switch, silent while the DAW plays |
 | `src/common/preset_audition.*` | Plays a generated preset, rejects silent ones, sets the level |
 | `src/melody_atoms/` | Melody Atoms generators and chord progressions |
 | `src/generator/` | Preset, wavetable, LFO and skin generators |

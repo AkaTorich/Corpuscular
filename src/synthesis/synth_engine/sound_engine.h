@@ -26,6 +26,7 @@ class Tuning;
 
 namespace vital {
   class Decimator;
+  struct HeldNote;
   class PeakMeter;
   class Sample;
   class ReorderableEffectChain;
@@ -63,6 +64,8 @@ namespace vital {
       void allNotesOff(int sample) override;
       void allNotesOff(int sample, int channel) override;
       void allNotesOffRange(int sample, int from_channel, int to_channel);
+      // Corpuscular: the keys held down now, to strike again after a preset load
+      std::vector<HeldNote> getHeldNotes();
 
       void noteOn(int note, mono_float velocity, int sample, int channel) override;
       void noteOff(int note, mono_float lift, int sample, int channel) override;

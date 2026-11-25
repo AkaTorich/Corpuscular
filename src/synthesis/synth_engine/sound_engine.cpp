@@ -290,6 +290,10 @@ namespace vital {
     voice_handler_->allNotesOffRange(sample, from_channel, to_channel);
   }
 
+  std::vector<HeldNote> SoundEngine::getHeldNotes() {
+    return voice_handler_->getHeldNotes();
+  }
+
   void SoundEngine::noteOn(int note, mono_float velocity, int sample, int channel) {
     voice_handler_->noteOn(note, velocity, sample, channel);
   }

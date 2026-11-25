@@ -26,6 +26,7 @@
 #include "synth_gui_interface.h"
 #include "synth_parameters.h"
 #include "utils.h"
+#include "voice_handler.h"
 
 SynthBase::SynthBase() : expired_(false) {
   expired_ = LoadSave::isExpired();
@@ -341,9 +342,16 @@ void SynthBase::loadInitPreset() {
 
 bool SynthBase::loadFromJson(const json& data) {
   pauseProcessing(true);
+  // Corpuscular: while the DAW plays, the keys it still holds (a long note of the clip) are struck again with the
+  // new preset, otherwise the sound would only come back with the next note
+  std::vector<vital::HeldNote> held_notes;
+  if (isHostPlaying())
+    held_notes = engine_->getHeldNotes();
   engine_->allSoundsOff();
   try {
     bool result = LoadSave::jsonToState(this, save_info_, data);
+    for (const vital::HeldNote& held : held_notes)
+      engine_->noteOn(held.note, held.velocity, 0, held.channel);
     pauseProcessing(false);
     return result;
   }

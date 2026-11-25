@@ -15,10 +15,12 @@ class SynthBase;
 
 // Preview on preset switch: the moment a preset is picked in the browser, by the arrows or in the generator,
 // one note of it sounds for five seconds. Loading cuts the previous sound at once (the engine silences all
-// voices on load), so switching quickly goes from sound to sound without a tail.
+// voices on load), so switching quickly goes from sound to sound without a tail. While the DAW transport plays
+// there is no preview, and a preview still sounding stops when the DAW starts.
 class PresetPreview : public Timer {
   public:
     static constexpr int kPlayMilliseconds = 5000;
+    static constexpr int kCheckMilliseconds = 50;
     static constexpr float kVelocity = 0.8f;
 
     PresetPreview(SynthBase* synth);
@@ -36,4 +38,5 @@ class PresetPreview : public Timer {
 
     SynthBase* synth_;
     int note_;
+    uint32 start_time_;
 };

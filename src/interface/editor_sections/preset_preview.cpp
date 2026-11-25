@@ -26,7 +26,7 @@ namespace {
   }
 }
 
-PresetPreview::PresetPreview(SynthBase* synth) : synth_(synth), note_(-1) { }
+PresetPreview::PresetPreview(SynthBase* synth) : synth_(synth), note_(-1), start_time_(0) { }
 
 PresetPreview::~PresetPreview() {
   stopTimer();
@@ -56,10 +56,18 @@ void PresetPreview::play() {
   // The load already silenced the voices; this only clears the key the last preview still holds
   if (note_ >= 0)
     keyboard->noteOff(kMidiChannel, note_, 0.0f);
+  note_ = -1;
+
+  // While the DAW plays there is no preview at all
+  if (synth_->isHostPlaying()) {
+    stopTimer();
+    return;
+  }
 
   note_ = noteForPreset();
   keyboard->noteOn(kMidiChannel, note_, kVelocity);
-  startTimer(kPlayMilliseconds);
+  start_time_ = Time::getMillisecondCounter();
+  startTimer(kCheckMilliseconds);
 }
 
 void PresetPreview::stop() {
@@ -71,5 +79,7 @@ void PresetPreview::stop() {
 }
 
 void PresetPreview::timerCallback() {
-  stop();
+  // Ends after its time, or at once when the DAW starts playing
+  if (synth_->isHostPlaying() || Time::getMillisecondCounter() - start_time_ >= (uint32)kPlayMilliseconds)
+    stop();
 }

@@ -156,6 +156,45 @@ namespace {
     const float* channels[1] = { samples.data() };
     writer->writeFromFloatArrays(channels, 1, (int)samples.size());
   }
+
+  // A held note, a preset loaded in the middle of it: the level after the load against the level before
+  double renderPresetSwitch(const File& folder, bool host_playing) {
+    HeadlessSynth synth;
+    synth.loadInitPreset();
+    synth.setHostPlaying(host_playing);
+    File preset = folder.getChildFile("switch_preset.vital");
+    preset.replaceWithText(synth.getStateJson().dump());
+
+    vital::SoundEngine* engine = synth.getEngine();
+    engine->setSampleRate(kRate);
+    engine->setBpm(120.0f);
+    engine->updateAllModulationSwitches();
+
+    const vital::mono_float* engine_out = (const vital::mono_float*)engine->output(0)->buffer;
+    std::vector<float> out;
+    double time = 0.0;
+    auto run = [&](int samples) {
+      for (int i = 0; i < samples; i += kBlock) {
+        engine->correctToTime(time);
+        time += kBlock * (1.0 / kRate);
+        engine->process(kBlock);
+        for (int s = 0; s < kBlock; ++s)
+          out.push_back(engine_out[vital::poly_float::kSize * s]);
+      }
+    };
+
+    run(kRate / 10);
+    engine->noteOn(kNote, kVelocity, 0, 0);
+    run(kLoop);
+    double before = std::max(rmsOf(out, (int)out.size() - kWindow, kWindow), 1e-9);
+    std::string error;
+    synth.loadFromFile(preset, error);
+    run(kLoop);
+    double after = rmsOf(out, (int)out.size() - kWindow, kWindow);
+    preset.deleteFile();
+    writeWav(folder.getChildFile(host_playing ? "switch_daw_playing.wav" : "switch_daw_stopped.wav"), out);
+    return after / before;
+  }
 }
 
 void runRetriggerTest(const StringArray& args) {
@@ -200,4 +239,9 @@ void runRetriggerTest(const StringArray& args) {
               << "   |   " << String(worst.overshoot, 2) << " " << String(worst.rms_max, 2) << " "
               << String(worst.rms_min, 2) << " " << String(worst.jump, 2) << std::endl;
   }
+
+  // Preset switch under a held note: while the DAW plays the note goes on (near 1.00), stopped it is cut (0.00)
+  std::cout << "preset switch, held note, level after/before: DAW playing "
+            << String(renderPresetSwitch(folder, true), 2) << ", DAW stopped "
+            << String(renderPresetSwitch(folder, false), 2) << std::endl;
 }

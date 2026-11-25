@@ -122,6 +122,9 @@ class SynthBase : public MidiManager::Listener {
     // Corpuscular: counts preset loads (files, DAW projects, init), so the undo history knows to start over
     int getStateLoads() const { return state_loads_.load(); }
     void stateLoaded() { state_loads_++; }
+    // Corpuscular: the DAW transport is playing (set by the plugin; the standalone app has no transport)
+    bool isHostPlaying() const { return host_playing_.load(); }
+    void setHostPlaying(bool playing) { host_playing_.store(playing); }
     vital::SoundEngine* getEngine() { return engine_.get(); }
     MidiKeyboardState* getKeyboardState() { return keyboard_state_.get(); }
     const vital::poly_float* getOscilloscopeMemory() { return oscilloscope_memory_; }
@@ -198,6 +201,7 @@ class SynthBase : public MidiManager::Listener {
     Tuning tuning_;
     ArpSequencer arp_sequencer_;
     std::atomic<int> state_loads_ { 0 };
+    std::atomic<bool> host_playing_ { false };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SynthBase)
 };

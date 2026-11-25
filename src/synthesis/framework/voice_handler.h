@@ -46,6 +46,13 @@ namespace vital {
     bool sostenuto_pressed;
   };
 
+  // Corpuscular: a key still held down, to strike again after a preset load silenced the voices
+  struct HeldNote {
+    int note;
+    int channel;
+    mono_float velocity;
+  };
+
   struct AggregateVoice;
 
   class Voice {
@@ -295,6 +302,8 @@ namespace vital {
       void allNotesOff(int sample) override;
       void allNotesOff(int sample, int channel) override;
       void allNotesOffRange(int sample, int from_channel, int to_channel);
+      // Corpuscular: the keys held down now (not sustained by the pedal: their key is already up)
+      std::vector<HeldNote> getHeldNotes();
 
       virtual void noteOn(int note, mono_float velocity, int sample, int channel) override;
       virtual void noteOff(int note, mono_float velocity, int sample, int channel) override;

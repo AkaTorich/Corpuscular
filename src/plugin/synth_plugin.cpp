@@ -158,6 +158,8 @@ void SynthPlugin::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midi_messa
       last_seconds_time_ = position_info_.ppqPosition / bps;
     }
   }
+  // Corpuscular: the preset preview stays silent while the DAW plays
+  setHostPlaying(play_head && position_info_.isPlaying);
 
   processModulationChanges();
   if (total_samples) {

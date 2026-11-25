@@ -495,6 +495,23 @@ namespace vital {
     }
   }
 
+  std::vector<HeldNote> VoiceHandler::getHeldNotes() {
+    std::vector<HeldNote> notes;
+    for (Voice* voice : active_voices_) {
+      Voice::KeyState key_state = voice->key_state();
+      if (voice->state().event == kVoiceKill || (key_state != Voice::kHeld && key_state != Voice::kTriggering))
+        continue;
+
+      const VoiceState& state = voice->state();
+      bool listed = false;
+      for (const HeldNote& held : notes)
+        listed = listed || (held.note == state.midi_note && held.channel == state.channel);
+      if (!listed)
+        notes.push_back({ state.midi_note, state.channel, state.velocity });
+    }
+    return notes;
+  }
+
   poly_mask VoiceHandler::getCurrentVoiceMask() {
     if (active_voices_.size()) {
       if (active_voices_.back()->voice_index())
